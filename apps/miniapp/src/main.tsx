@@ -1,1 +1,1 @@
-console.log('DGP miniapp ready');
+console.log('phase3 miniapp');
