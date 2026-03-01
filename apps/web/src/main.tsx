@@ -9,7 +9,6 @@ import { arbitrumSepolia } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
 
 const queryClient = new QueryClient();
-
 const config = createConfig({
 chains: [arbitrumSepolia],
 connectors: [injected()],
@@ -17,13 +16,7 @@ transports: { [arbitrumSepolia.id]: http() }
 });
 
 const escrowFactoryAbi = [
-{
-type: "function",
-name: "nextEscrowId",
-stateMutability: "view",
-inputs: [],
-outputs: [{ name: "", type: "uint256" }]
-},
+{ type: "function", name: "nextEscrowId", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
 {
 type: "function",
 name: "createEscrow",
@@ -35,9 +28,28 @@ inputs: [
 { name: "timeoutAt", type: "uint64" },
 { name: "evidenceCID", type: "string" }
 ],
+outputs: [{ type: "uint256" }, { type: "address" }]
+}
+] as const;
+
+const disputeAbi = [
+{
+type: "function",
+name: "openDispute",
+stateMutability: "nonpayable",
+inputs: [{ name: "escrow", type: "address" }],
+outputs: [{ type: "uint256" }]
+},
+{
+type: "function",
+name: "getDispute",
+stateMutability: "view",
+inputs: [{ name: "disputeId", type: "uint256" }],
 outputs: [
-{ name: "escrowId", type: "uint256" },
-{ name: "escrowAddr", type: "address" }
+{ name: "escrow", type: "address" },
+{ name: "resolved", type: "bool" },
+{ name: "sellerBps", type: "uint16" },
+{ name: "votes", type: "uint16" }
 ]
 }
 ] as const;
@@ -47,23 +59,35 @@ const { address, isConnected } = useAccount();
 const { writeContractAsync, isPending } = useWriteContract();
 
 const factory = (import.meta as any).env?.VITE_ESCROW_FACTORY || "";
+const dispute = (import.meta as any).env?.VITE_DISPUTE_MODULE || "";
+
 const [seller, setSeller] = useState("");
 const [token, setToken] = useState("");
-const [amount, setAmount] = useState("1000000"); // USDT 6位示例
+const [amount, setAmount] = useState("1000000");
 const [timeoutAt, setTimeoutAt] = useState(String(Math.floor(Date.now() / 1000) + 3600));
 const [cid, setCid] = useState("ipfs://demo");
 const [txHash, setTxHash] = useState("");
 
-const { data, isLoading, error, refetch } = useReadContract({
+const [escrowAddrForDispute, setEscrowAddrForDispute] = useState("");
+const [disputeId, setDisputeId] = useState("1");
+
+const nextEscrow = useReadContract({
 address: factory ? (factory as `0x${string}`) : undefined,
 abi: escrowFactoryAbi,
 functionName: "nextEscrowId",
 query: { enabled: !!factory }
 });
 
+const disputeInfo = useReadContract({
+address: dispute ? (dispute as `0x${string}`) : undefined,
+abi: disputeAbi,
+functionName: "getDispute",
+args: [BigInt(disputeId || "1")],
+query: { enabled: !!dispute }
+});
+
 async function onCreate() {
 if (!factory) return alert("请先配置 VITE_ESCROW_FACTORY");
-try {
 const hash = await writeContractAsync({
 address: factory as `0x${string}`,
 abi: escrowFactoryAbi,
@@ -71,19 +95,28 @@ functionName: "createEscrow",
 args: [seller as `0x${string}`, token as `0x${string}`, BigInt(amount), BigInt(timeoutAt), cid]
 });
 setTxHash(hash);
-setTimeout(() => refetch(), 3000);
-} catch (e) {
-console.error(e);
-alert("交易发送失败，请检查地址/钱包网络");
+setTimeout(() => nextEscrow.refetch(), 3000);
 }
+
+async function onOpenDispute() {
+if (!dispute) return alert("请先配置 VITE_DISPUTE_MODULE");
+const hash = await writeContractAsync({
+address: dispute as `0x${string}`,
+abi: disputeAbi,
+functionName: "openDispute",
+args: [escrowAddrForDispute as `0x${string}`]
+});
+setTxHash(hash);
+setTimeout(() => disputeInfo.refetch(), 3000);
 }
 
 return (
-<main style={{ maxWidth: 820, margin: "24px auto", fontFamily: "sans-serif", lineHeight: 1.5 }}>
-<h1>DGP-P2P Web (Phase 8.4)</h1>
-<p>钱包状态：{isConnected ? `已连接 ${address}` : "未连接"}</p>
-<p>EscrowFactory: {factory || "未配置 VITE_ESCROW_FACTORY"}</p>
-<p>nextEscrowId: {isLoading ? "读取中..." : error ? "读取失败" : String(data ?? "-")}</p>
+<main style={{ maxWidth: 860, margin: "24px auto", fontFamily: "sans-serif", lineHeight: 1.5 }}>
+<h1>DGP-P2P Web (Phase 9)</h1>
+<p>钱包：{isConnected ? `已连接 ${address}` : "未连接"}</p>
+<p>Factory: {factory || "未配置"}</p>
+<p>Dispute: {dispute || "未配置"}</p>
+<p>nextEscrowId: {nextEscrow.isLoading ? "读取中..." : String(nextEscrow.data ?? "-")}</p>
 
 <hr />
 <h3>Create Escrow</h3>
@@ -93,6 +126,19 @@ return (
 <input placeholder="timeoutAt(unix)" value={timeoutAt} onChange={(e) => setTimeoutAt(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
 <input placeholder="evidence CID" value={cid} onChange={(e) => setCid(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
 <button onClick={onCreate} disabled={isPending}>{isPending ? "发送中..." : "创建 Escrow"}</button>
+
+<hr />
+<h3>Open Dispute</h3>
+<input placeholder="escrow address 0x..." value={escrowAddrForDispute} onChange={(e) => setEscrowAddrForDispute(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<button onClick={onOpenDispute} disabled={isPending}>{isPending ? "发送中..." : "发起争议"}</button>
+
+<hr />
+<h3>Query Dispute</h3>
+<input placeholder="disputeId" value={disputeId} onChange={(e) => setDisputeId(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<button onClick={() => disputeInfo.refetch()}>刷新争议状态</button>
+<pre style={{ background: "#f6f6f6", padding: 12, borderRadius: 8, overflow: "auto" }}>
+{JSON.stringify(disputeInfo.data ?? null, null, 2)}
+</pre>
 
 {txHash && <p>Tx: {txHash}</p>}
 </main>
