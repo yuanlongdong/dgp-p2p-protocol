@@ -1,42 +1,12 @@
 name: deploy-bsc-manual
-
 on:
 push:
-branches: [ main ]
+branches:
+- main
 
 jobs:
-deploy:
+ping:
 runs-on: ubuntu-latest
-defaults:
-run:
-working-directory: packages/contracts
 steps:
-- uses: actions/checkout@v4
-- uses: actions/setup-node@v4
-with:
-node-version: 20
-- uses: pnpm/action-setup@v4
-with:
-version: 9
-
-- name: Install deps
-run: pnpm install --frozen-lockfile=false
-working-directory: /home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}
-
-- name: Compile
-env:
-PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
-BSC_TESTNET_RPC_URL: ${{ secrets.BSC_TESTNET_RPC_URL }}
-run: npx hardhat compile
-
-- name: Deploy
-env:
-PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
-BSC_TESTNET_RPC_URL: ${{ secrets.BSC_TESTNET_RPC_URL }}
-run: npx hardhat run scripts/deploy-and-save.ts --network bscTestnet
-
-- name: Show deployment file
-working-directory: /home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}
-run: |
-ls -la deployments || true
-cat deployments/bsc-testnet.latest.json || true
+- name: Ping
+run: echo "workflow is alive"
