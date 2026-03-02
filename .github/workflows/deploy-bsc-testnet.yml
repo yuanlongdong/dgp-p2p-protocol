@@ -11,16 +11,11 @@ run:
 working-directory: packages/contracts
 
 steps:
-- name: Checkout
-uses: actions/checkout@v4
-
-- name: Setup Node
-uses: actions/setup-node@v4
+- uses: actions/checkout@v4
+- uses: actions/setup-node@v4
 with:
 node-version: 20
-
-- name: Setup pnpm
-uses: pnpm/action-setup@v4
+- uses: pnpm/action-setup@v4
 with:
 version: 9
 
@@ -28,7 +23,7 @@ version: 9
 run: pnpm install --frozen-lockfile=false
 working-directory: /home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}
 
-- name: Build contracts
+- name: Compile
 run: npx hardhat compile
 
 - name: Deploy
@@ -36,10 +31,3 @@ env:
 PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
 BSC_TESTNET_RPC_URL: ${{ secrets.BSC_TESTNET_RPC_URL }}
 run: npx hardhat run scripts/deploy-and-save.ts --network bscTestnet
-
-- name: Upload deployment artifact
-uses: actions/upload-artifact@v4
-with:
-name: bsc-testnet-deployment
-path: /home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/deployments/*.json
-if-no-files-found: warn
