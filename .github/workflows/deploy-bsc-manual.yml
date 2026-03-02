@@ -1,29 +1,9 @@
-name: Deploy BSC Manual
-
+name: deploy-bsc-manual
 on:
 workflow_dispatch:
 
 jobs:
-deploy:
+ping:
 runs-on: ubuntu-latest
-defaults:
-run:
-working-directory: packages/contracts
 steps:
-- uses: actions/checkout@v4
-- uses: actions/setup-node@v4
-with:
-node-version: 20
-- uses: pnpm/action-setup@v4
-with:
-version: 9
-- name: Install
-run: pnpm install --frozen-lockfile=false
-working-directory: /home/runner/work/${{ github.event.repository.name }}/${{ github.event.repository.name }}
-- name: Compile
-run: npx hardhat compile
-- name: Deploy
-env:
-PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
-BSC_TESTNET_RPC_URL: ${{ secrets.BSC_TESTNET_RPC_URL }}
-run: npx hardhat run scripts/deploy-and-save.ts --network bscTestnet
+- run: echo "workflow_dispatch works"
