@@ -27,6 +27,15 @@ pnpm --filter @dgp/contracts run deploy:op-sepolia
 - `VITE_COMPLIANCE_REGISTRY=<部署输出地址>`
 - `VITE_SUBGRAPH_URL=<The Graph query endpoint>`
 
+## 一键回填演示环境变量
+```bash
+# 读取 packages/contracts/deployments/arbSepolia.json 并生成 web/miniapp env
+pnpm demo:prepare:arb -- "https://api.studio.thegraph.com/query/<id>/<name>/latest"
+```
+生成文件：
+- `apps/web/.env.local`
+- `apps/miniapp/.env.local`
+
 ## Subgraph 地址同步
 ```bash
 pnpm subgraph:sync:arb   # 从 contracts/deployments/arbSepolia.json 写入 manifest
