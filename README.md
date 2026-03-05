@@ -69,7 +69,7 @@ pnpm dev:bot
 export RPC_URL=<arb/op rpc>
 export PRIVATE_KEY=<admin key>
 export COMPLIANCE_REGISTRY=<on-chain compliance registry>
-export PROVIDER_SHARED_SECRET=<optional shared secret>
+export PROVIDER_SHARED_SECRET=<required shared secret>
 pnpm dev:compliance-gateway
 ```
 Webhook:
