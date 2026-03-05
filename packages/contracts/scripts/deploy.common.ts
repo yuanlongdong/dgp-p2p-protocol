@@ -15,6 +15,11 @@ export async function deployAll() {
   const dispute = await Dispute.deploy(await registry.getAddress(), 2, 2, 86400);
   await dispute.waitForDeployment();
 
+  const KlerosAdapter = await ethers.getContractFactory("KlerosAdapterMock");
+  const klerosAdapter = await KlerosAdapter.deploy(await dispute.getAddress());
+  await klerosAdapter.waitForDeployment();
+  await dispute.setKlerosAdapter(await klerosAdapter.getAddress());
+
   const Factory = await ethers.getContractFactory("EscrowFactory");
   const factory = await Factory.deploy(await dispute.getAddress());
   await factory.waitForDeployment();
@@ -29,6 +34,7 @@ export async function deployAll() {
     deployer: deployer.address,
     mediatorRegistry: await registry.getAddress(),
     disputeModule: await dispute.getAddress(),
+    klerosAdapter: await klerosAdapter.getAddress(),
     escrowFactory: await factory.getAddress(),
     guarantorVault: await vault.getAddress(),
     feeRouter: "",
