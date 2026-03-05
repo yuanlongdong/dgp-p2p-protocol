@@ -39,3 +39,19 @@ jobs:
         with:
           name: deployments-${{ github.event.inputs.target_network }}
           path: packages/contracts/deployments/*.json
+      - name: Demo e2e post-check (skip ui build)
+        run: |
+          if [ "${{ github.event.inputs.target_network }}" = "arbSepolia" ]; then
+            pnpm demo:e2e:arb -- "https://example.com/subgraph" --skip-ui-build
+          else
+            pnpm demo:e2e:op -- "https://example.com/subgraph" --skip-ui-build
+          fi
+      - name: Upload demo e2e artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-e2e-${{ github.event.inputs.target_network }}
+          path: |
+            apps/web/.env.local
+            apps/miniapp/.env.local
+            packages/subgraph/subgraph.yaml
+            packages/subgraph/build/subgraph.yaml
