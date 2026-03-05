@@ -1,4 +1,8 @@
+import crypto from "crypto";
 import express from "express";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import { z } from "zod";
 import { ethers } from "ethers";
 
 const RPC_URL = process.env.RPC_URL || "";
@@ -6,6 +10,11 @@ const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
 const COMPLIANCE_REGISTRY = process.env.COMPLIANCE_REGISTRY || "";
 const PORT = Number(process.env.PORT || 8787);
 const PROVIDER_SHARED_SECRET = process.env.PROVIDER_SHARED_SECRET || "";
+const REQUEST_SKEW_SECONDS = Number(process.env.REQUEST_SKEW_SECONDS || 300);
+const NONCE_TTL_SECONDS = Number(process.env.NONCE_TTL_SECONDS || 900);
+const IDEMPOTENCY_TTL_SECONDS = Number(process.env.IDEMPOTENCY_TTL_SECONDS || 900);
+const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
+const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 60);
 
 if (!RPC_URL || !PRIVATE_KEY || !COMPLIANCE_REGISTRY || !PROVIDER_SHARED_SECRET) {
   console.error("[compliance-gateway] RPC_URL / PRIVATE_KEY / COMPLIANCE_REGISTRY / PROVIDER_SHARED_SECRET are required");
@@ -21,25 +30,122 @@ const signer = new ethers.Wallet(PRIVATE_KEY, provider);
 const registry = new ethers.Contract(COMPLIANCE_REGISTRY, abi, signer);
 
 const app = express();
-app.use(express.json());
+app.disable("x-powered-by");
+app.use(helmet());
+app.use(rateLimit({
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false
+}));
+app.use(express.json({
+  verify: (req, _res, buf) => {
+    req.rawBody = buf.toString("utf8");
+  }
+}));
 
-function verifyAuth(req) {
-  return req.header("x-provider-secret") === PROVIDER_SHARED_SECRET;
+const usedNonces = new Map();
+const idempotencyStore = new Map();
+
+setInterval(() => {
+  const now = Math.floor(Date.now() / 1000);
+  for (const [nonce, exp] of usedNonces.entries()) {
+    if (exp <= now) usedNonces.delete(nonce);
+  }
+  for (const [key, entry] of idempotencyStore.entries()) {
+    if (entry.expiresAt <= now) idempotencyStore.delete(key);
+  }
+}, 60_000).unref();
+
+const payloadSchema = z.object({
+  account: z.string(),
+  kycApproved: z.union([z.boolean(), z.enum(["true", "false"])]),
+  blacklisted: z.union([z.boolean(), z.enum(["true", "false"])]),
+  sanctioned: z.union([z.boolean(), z.enum(["true", "false"])]),
+  riskBps: z.number().int().min(0).max(10000)
+});
+
+function log(event, extra = {}) {
+  console.log(JSON.stringify({
+    ts: new Date().toISOString(),
+    event,
+    ...extra
+  }));
 }
 
-function okAddress(value) {
+function parseBool(value) {
+  if (value === true || value === false) return value;
+  return value === "true";
+}
+
+function signatureFor(ts, nonce, rawBody) {
+  return crypto
+    .createHmac("sha256", PROVIDER_SHARED_SECRET)
+    .update(`${ts}.${nonce}.${rawBody}`)
+    .digest("hex");
+}
+
+function secureEqualHex(a, b) {
   try {
-    return ethers.getAddress(value);
+    const aa = Buffer.from(a, "hex");
+    const bb = Buffer.from(b, "hex");
+    if (aa.length !== bb.length) return false;
+    return crypto.timingSafeEqual(aa, bb);
   } catch {
-    return "";
+    return false;
   }
 }
 
-function parseBool(value, name) {
-  if (value === true || value === false) return value;
-  if (value === "true") return true;
-  if (value === "false") return false;
-  throw new Error(`invalid boolean field: ${name}`);
+function verifySignature(req) {
+  const ts = Number(req.header("x-provider-ts") || 0);
+  const nonce = req.header("x-provider-nonce") || "";
+  const sig = req.header("x-provider-signature") || "";
+  if (!Number.isInteger(ts) || !nonce || !sig) {
+    return { ok: false, error: "missing-signature-headers" };
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - ts) > REQUEST_SKEW_SECONDS) {
+    return { ok: false, error: "timestamp-out-of-window" };
+  }
+
+  if (usedNonces.has(nonce)) {
+    return { ok: false, error: "replay-detected" };
+  }
+
+  const expected = signatureFor(ts, nonce, req.rawBody || "");
+  if (!secureEqualHex(sig, expected)) {
+    return { ok: false, error: "bad-signature" };
+  }
+
+  usedNonces.set(nonce, now + NONCE_TTL_SECONDS);
+  return { ok: true };
+}
+
+function normalizeBody(req, res) {
+  const parse = payloadSchema.safeParse(req.body);
+  if (!parse.success) {
+    res.status(400).json({ ok: false, error: "invalid-body", details: parse.error.flatten() });
+    return null;
+  }
+  const account = (() => {
+    try {
+      return ethers.getAddress(parse.data.account);
+    } catch {
+      return "";
+    }
+  })();
+  if (!account) {
+    res.status(400).json({ ok: false, error: "invalid-account" });
+    return null;
+  }
+  return {
+    account,
+    kycApproved: parseBool(parse.data.kycApproved),
+    blacklisted: parseBool(parse.data.blacklisted),
+    sanctioned: parseBool(parse.data.sanctioned),
+    riskBps: parse.data.riskBps
+  };
 }
 
 app.get("/healthz", async (_req, res) => {
@@ -51,40 +157,57 @@ app.get("/healthz", async (_req, res) => {
   }
 });
 
-app.post("/provider/kyc-result", async (req, res) => {
-  if (!verifyAuth(req)) return res.status(401).json({ ok: false, error: "unauthorized" });
-  const account = okAddress(req.body?.account || "");
-  let kycApproved;
-  let blacklisted;
-  let sanctioned;
-  let riskBps;
+app.get("/readyz", async (_req, res) => {
   try {
-    kycApproved = parseBool(req.body?.kycApproved, "kycApproved");
-    blacklisted = parseBool(req.body?.blacklisted, "blacklisted");
-    sanctioned = parseBool(req.body?.sanctioned, "sanctioned");
-    riskBps = Number(req.body?.riskBps ?? 0);
-  } catch (e) {
-    return res.status(400).json({ ok: false, error: String(e) });
-  }
-
-  if (!account) return res.status(400).json({ ok: false, error: "invalid account" });
-  if (!Number.isInteger(riskBps) || riskBps < 0 || riskBps > 10000) {
-    return res.status(400).json({ ok: false, error: "invalid riskBps" });
-  }
-
-  try {
-    const tx = await registry.setComplianceData(account, kycApproved, blacklisted, sanctioned, riskBps);
-    await tx.wait();
-
-    res.json({
-      ok: true,
-      txHash: tx.hash
-    });
+    await provider.getBlockNumber();
+    res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e) });
   }
 });
 
+app.post("/provider/kyc-result", async (req, res) => {
+  const verify = verifySignature(req);
+  if (!verify.ok) {
+    log("auth_rejected", { reason: verify.error, ip: req.ip });
+    return res.status(401).json({ ok: false, error: verify.error });
+  }
+
+  const idemKey = req.header("x-idempotency-key") || "";
+  if (idemKey && idempotencyStore.has(idemKey)) {
+    const cached = idempotencyStore.get(idemKey);
+    return res.status(200).json({ ok: true, idempotent: true, ...cached.response });
+  }
+
+  const body = normalizeBody(req, res);
+  if (!body) return;
+
+  try {
+    const tx = await registry.setComplianceData(
+      body.account,
+      body.kycApproved,
+      body.blacklisted,
+      body.sanctioned,
+      body.riskBps
+    );
+    await tx.wait();
+
+    const response = { txHash: tx.hash, account: body.account };
+    if (idemKey) {
+      idempotencyStore.set(idemKey, {
+        response,
+        expiresAt: Math.floor(Date.now() / 1000) + IDEMPOTENCY_TTL_SECONDS
+      });
+    }
+
+    log("kyc_result_applied", { account: body.account, txHash: tx.hash });
+    return res.json({ ok: true, ...response });
+  } catch (e) {
+    log("kyc_result_failed", { error: String(e) });
+    return res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
 app.listen(PORT, () => {
-  console.log(`[compliance-gateway] listening on :${PORT}`);
+  log("service_started", { port: PORT, registry: COMPLIANCE_REGISTRY, signer: signer.address });
 });
