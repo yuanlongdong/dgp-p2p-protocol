@@ -19,6 +19,14 @@ export async function deployAll() {
   const factory = await Factory.deploy(await dispute.getAddress());
   await factory.waitForDeployment();
 
+  const Vault = await ethers.getContractFactory("GuarantorVault");
+  const vault = await Vault.deploy(deployer.address);
+  await vault.waitForDeployment();
+
+  const FeeRouter = await ethers.getContractFactory("FeeRouter");
+  const feeRouter = await FeeRouter.deploy(deployer.address, deployer.address, 50);
+  await feeRouter.waitForDeployment();
+
   const output = {
     network: network.name,
     chainId: Number(network.config.chainId || 0),
@@ -26,6 +34,8 @@ export async function deployAll() {
     mediatorRegistry: await registry.getAddress(),
     disputeModule: await dispute.getAddress(),
     escrowFactory: await factory.getAddress(),
+    guarantorVault: await vault.getAddress(),
+    feeRouter: await feeRouter.getAddress(),
     timestamp: new Date().toISOString()
   };
 
