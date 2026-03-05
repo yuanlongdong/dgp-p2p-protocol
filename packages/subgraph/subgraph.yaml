@@ -47,3 +47,61 @@ dataSources:
         - event: Resolved(indexed uint256,uint16)
           handler: handleResolved
       file: ./src/mapping.ts
+  - kind: ethereum/contract
+    name: DGPGovernorLite
+    network: arbitrum-sepolia
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: DGPGovernorLite
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - GovernanceProposal
+        - GovernanceVote
+      abis:
+        - name: DGPGovernorLite
+          file: ./abis/DGPGovernorLite.json
+      eventHandlers:
+        - event: ProposalCreated(indexed uint256,indexed address,uint8,uint16,uint64,uint64,string)
+          handler: handleProposalCreated
+        - event: VoteCast(indexed uint256,indexed address,bool,uint256)
+          handler: handleVoteCast
+        - event: ProposalQueued(indexed uint256)
+          handler: handleProposalQueued
+        - event: ProposalExecuted(indexed uint256)
+          handler: handleProposalExecuted
+        - event: ProposalCanceled(indexed uint256)
+          handler: handleProposalCanceled
+      file: ./src/mapping.ts
+  - kind: ethereum/contract
+    name: ComplianceRegistry
+    network: arbitrum-sepolia
+    source:
+      address: "0x0000000000000000000000000000000000000000"
+      abi: ComplianceRegistry
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - UserCompliance
+        - ComplianceAction
+      abis:
+        - name: ComplianceRegistry
+          file: ./abis/ComplianceRegistry.json
+      eventHandlers:
+        - event: KycSet(indexed address,bool)
+          handler: handleKycSet
+        - event: BlacklistSet(indexed address,bool)
+          handler: handleBlacklistSet
+        - event: SanctionSet(indexed address,bool)
+          handler: handleSanctionSet
+        - event: AmlRiskSet(indexed address,uint16)
+          handler: handleAmlRiskSet
+        - event: AmlConfigSet(bool,uint16)
+          handler: handleAmlConfigSet
+      file: ./src/mapping.ts
