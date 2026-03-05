@@ -27,3 +27,55 @@ type Vote @entity(immutable: true) {
   txHash: Bytes!
   timestamp: BigInt!
 }
+
+type GovernanceProposal @entity(immutable: false) {
+  id: ID!
+  proposalId: BigInt!
+  proposer: Bytes!
+  kind: Int!
+  value: Int!
+  description: String!
+  startBlock: BigInt!
+  endBlock: BigInt!
+  forVotes: BigInt!
+  againstVotes: BigInt!
+  queued: Boolean!
+  executed: Boolean!
+  canceled: Boolean!
+  state: Int!
+  createdAt: BigInt!
+  txHash: Bytes!
+}
+
+type GovernanceVote @entity(immutable: true) {
+  id: ID!
+  proposal: GovernanceProposal!
+  voter: Bytes!
+  support: Boolean!
+  weight: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type UserCompliance @entity(immutable: false) {
+  id: ID!
+  account: Bytes!
+  kycApproved: Boolean!
+  blacklisted: Boolean!
+  sanctioned: Boolean!
+  amlRiskBps: Int!
+  updatedAt: BigInt!
+  txHash: Bytes!
+}
+
+type ComplianceAction @entity(immutable: true) {
+  id: ID!
+  account: Bytes
+  action: String!
+  boolValue: Boolean
+  riskBps: Int
+  maxRiskBps: Int
+  actor: Bytes!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
