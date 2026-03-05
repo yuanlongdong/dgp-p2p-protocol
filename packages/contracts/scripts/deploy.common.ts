@@ -23,10 +23,6 @@ export async function deployAll() {
   const vault = await Vault.deploy(deployer.address);
   await vault.waitForDeployment();
 
-  const FeeRouter = await ethers.getContractFactory("FeeRouter");
-  const feeRouter = await FeeRouter.deploy(deployer.address, deployer.address, 50);
-  await feeRouter.waitForDeployment();
-
   const output = {
     network: network.name,
     chainId: Number(network.config.chainId || 0),
@@ -35,9 +31,17 @@ export async function deployAll() {
     disputeModule: await dispute.getAddress(),
     escrowFactory: await factory.getAddress(),
     guarantorVault: await vault.getAddress(),
-    feeRouter: await feeRouter.getAddress(),
+    feeRouter: "",
     timestamp: new Date().toISOString()
   };
+
+  await vault.setEscrowFactory(await factory.getAddress());
+  await factory.setCollateralConfig(await vault.getAddress(), 15000);
+
+  const FeeRouter = await ethers.getContractFactory("FeeRouter");
+  const feeRouter = await FeeRouter.deploy(deployer.address, deployer.address, 50);
+  await feeRouter.waitForDeployment();
+  output.feeRouter = await feeRouter.getAddress();
 
   const outDir = join(process.cwd(), "deployments");
   mkdirSync(outDir, { recursive: true });
