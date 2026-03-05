@@ -32,6 +32,18 @@ export async function deployAll() {
   const vault = await Vault.deploy(deployer.address);
   await vault.waitForDeployment();
 
+  const OracleRouter = await ethers.getContractFactory("OracleRouter");
+  const oracleRouter = await OracleRouter.deploy(deployer.address);
+  await oracleRouter.waitForDeployment();
+
+  const OracleTwapGuard = await ethers.getContractFactory("OracleTwapGuard");
+  const oracleTwapGuard = await OracleTwapGuard.deploy(
+    deployer.address,
+    await oracleRouter.getAddress(),
+    500
+  );
+  await oracleTwapGuard.waitForDeployment();
+
   const output = {
     network: network.name,
     chainId: Number(network.config.chainId || 0),
@@ -42,6 +54,8 @@ export async function deployAll() {
     complianceRegistry: await compliance.getAddress(),
     escrowFactory: await factory.getAddress(),
     guarantorVault: await vault.getAddress(),
+    oracleRouter: await oracleRouter.getAddress(),
+    oracleTwapGuard: await oracleTwapGuard.getAddress(),
     feeRouter: "",
     timestamp: new Date().toISOString()
   };
@@ -49,6 +63,7 @@ export async function deployAll() {
   await vault.setEscrowFactory(await factory.getAddress());
   await factory.setCollateralConfig(await vault.getAddress(), 15000);
   await factory.setComplianceConfig(await compliance.getAddress(), false);
+  await factory.setRiskConfig(await oracleTwapGuard.getAddress(), false);
 
   const FeeRouter = await ethers.getContractFactory("FeeRouter");
   const feeRouter = await FeeRouter.deploy(deployer.address, deployer.address, 50);
