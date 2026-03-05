@@ -43,4 +43,30 @@ describe("OracleRouter", function () {
     await router.setFeed(await token.getAddress(), await badFeed.getAddress());
     await expect(router.latestPrice(await token.getAddress())).to.be.revertedWith("bad-price");
   });
+
+  it("should enforce stale-price check when maxAge is configured", async function () {
+    const [owner] = await ethers.getSigners();
+
+    const Router = await ethers.getContractFactory("OracleRouter");
+    const router = await Router.deploy(owner.address);
+    await router.waitForDeployment();
+
+    const Feed = await ethers.getContractFactory("MockPriceFeed");
+    const feed = await Feed.deploy(8, 1_00000000);
+    await feed.waitForDeployment();
+
+    const Mock = await ethers.getContractFactory("MockERC20");
+    const token = await Mock.deploy("MockUSDT", "mUSDT");
+    await token.waitForDeployment();
+
+    await router.setFeedConfig(await token.getAddress(), await feed.getAddress(), 60);
+    await expect(router.latestPrice(await token.getAddress())).to.not.be.reverted;
+
+    await ethers.provider.send("evm_increaseTime", [61]);
+    await ethers.provider.send("evm_mine", []);
+    await expect(router.latestPrice(await token.getAddress())).to.be.revertedWith("stale-price");
+
+    await feed.setAnswer(1_01000000);
+    await expect(router.latestPrice(await token.getAddress())).to.not.be.reverted;
+  });
 });
