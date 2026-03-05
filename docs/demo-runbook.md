@@ -36,6 +36,15 @@ pnpm demo:prepare:arb -- "https://api.studio.thegraph.com/query/<id>/<name>/late
 - `apps/web/.env.local`
 - `apps/miniapp/.env.local`
 
+## 端到端演示流水线（推荐）
+```bash
+# deployment 文件已存在时：
+pnpm demo:e2e:arb -- "https://api.studio.thegraph.com/query/<id>/<name>/latest"
+
+# 若只想准备 env 且跳过 web/miniapp build：
+node scripts/ops/e2e-demo.mjs arbSepolia "https://api.studio.thegraph.com/query/<id>/<name>/latest" --skip-ui-build
+```
+
 ## Subgraph 地址同步
 ```bash
 pnpm subgraph:sync:arb   # 从 contracts/deployments/arbSepolia.json 写入 manifest
