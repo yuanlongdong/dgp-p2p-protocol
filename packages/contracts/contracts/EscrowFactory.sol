@@ -6,15 +6,22 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./EscrowCore.sol";
 import "./GuarantorVault.sol";
 
+interface IComplianceRegistry {
+function isAllowed(address account) external view returns (bool);
+}
+
 contract EscrowFactory is Ownable {
 event EscrowCreated(uint256 indexed escrowId, address indexed buyer, address indexed seller, address escrow);
 event CollateralConfigUpdated(address indexed vault, uint16 minCollateralBps);
+event ComplianceConfigUpdated(address indexed registry, bool enforceCompliance);
 
 uint256 public nextEscrowId;
 mapping(uint256 => address) public escrows;
 address public disputeModule;
 address public guarantorVault;
 uint16 public minCollateralBps = 15000;
+address public complianceRegistry;
+bool public enforceCompliance;
 
 constructor(address _disputeModule) Ownable(msg.sender) {
 disputeModule = _disputeModule;
@@ -25,6 +32,12 @@ require(minBps >= 10000, "collateral<100%");
 guarantorVault = vault;
 minCollateralBps = minBps;
 emit CollateralConfigUpdated(vault, minBps);
+}
+
+function setComplianceConfig(address registry, bool enforce) external onlyOwner {
+complianceRegistry = registry;
+enforceCompliance = enforce;
+emit ComplianceConfigUpdated(registry, enforce);
 }
 
 function createEscrow(
@@ -47,6 +60,7 @@ address guarantor
 ) external returns (uint256 escrowId, address escrowAddr) {
 require(guarantor != address(0), "guarantor=0");
 require(guarantorVault != address(0), "vault-not-set");
+_checkCompliance(guarantor);
 
 (escrowId, escrowAddr) = _createEscrow(msg.sender, seller, token, amount, timeoutAt, evidenceCID);
 GuarantorVault(guarantorVault).lockForEscrow(
@@ -85,11 +99,19 @@ string memory evidenceCID
 require(seller != address(0), "seller=0");
 require(amount > 0, "amount=0");
 require(timeoutAt > block.timestamp, "bad-timeout");
+_checkCompliance(buyer);
+_checkCompliance(seller);
 
 escrowId = ++nextEscrowId;
 EscrowCore escrow = new EscrowCore(buyer, seller, token, amount, timeoutAt, evidenceCID, disputeModule);
 escrowAddr = address(escrow);
 escrows[escrowId] = escrowAddr;
 emit EscrowCreated(escrowId, buyer, seller, escrowAddr);
+}
+
+function _checkCompliance(address account) internal view {
+if (!enforceCompliance) return;
+require(complianceRegistry != address(0), "compliance-not-set");
+require(IComplianceRegistry(complianceRegistry).isAllowed(account), "compliance-blocked");
 }
 }

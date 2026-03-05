@@ -24,6 +24,10 @@ export async function deployAll() {
   const factory = await Factory.deploy(await dispute.getAddress());
   await factory.waitForDeployment();
 
+  const Compliance = await ethers.getContractFactory("ComplianceRegistry");
+  const compliance = await Compliance.deploy(deployer.address);
+  await compliance.waitForDeployment();
+
   const Vault = await ethers.getContractFactory("GuarantorVault");
   const vault = await Vault.deploy(deployer.address);
   await vault.waitForDeployment();
@@ -35,6 +39,7 @@ export async function deployAll() {
     mediatorRegistry: await registry.getAddress(),
     disputeModule: await dispute.getAddress(),
     klerosAdapter: await klerosAdapter.getAddress(),
+    complianceRegistry: await compliance.getAddress(),
     escrowFactory: await factory.getAddress(),
     guarantorVault: await vault.getAddress(),
     feeRouter: "",
@@ -43,6 +48,7 @@ export async function deployAll() {
 
   await vault.setEscrowFactory(await factory.getAddress());
   await factory.setCollateralConfig(await vault.getAddress(), 15000);
+  await factory.setComplianceConfig(await compliance.getAddress(), false);
 
   const FeeRouter = await ethers.getContractFactory("FeeRouter");
   const feeRouter = await FeeRouter.deploy(deployer.address, deployer.address, 50);
