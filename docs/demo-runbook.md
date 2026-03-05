@@ -23,6 +23,8 @@ pnpm --filter @dgp/contracts run deploy:op-sepolia
 ## 前端环境变量
 - `VITE_ESCROW_FACTORY=<部署输出地址>`
 - `VITE_DISPUTE_MODULE=<部署输出地址>`
+- `VITE_DGP_GOVERNOR=<部署输出地址>`
+- `VITE_COMPLIANCE_REGISTRY=<部署输出地址>`
 - `VITE_SUBGRAPH_URL=<The Graph query endpoint>`
 
 ## Subgraph 地址同步
