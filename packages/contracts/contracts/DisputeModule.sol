@@ -4,6 +4,8 @@ pragma solidity ^0.8.24;
 interface IEscrowRuling {
 function applyRuling(uint16 sellerBps) external;
 function status() external view returns (uint8);
+function buyer() external view returns (address);
+function seller() external view returns (address);
 }
 
 interface IMediatorRegistry {
@@ -17,6 +19,7 @@ bool resolved;
 uint16 sellerBps; // 0~10000
 uint16 yesVotes;
 uint64 openedAt;
+uint256 sumSellerBps;
 mapping(address => bool) voted;
 }
 
@@ -26,6 +29,7 @@ uint16 public quorum;
 uint64 public voteWindow;
 uint256 public nextDisputeId;
 mapping(uint256 => Dispute) private disputes;
+mapping(address => uint256) public activeDisputeByEscrow;
 
 event DisputeOpened(uint256 indexed disputeId, address indexed escrow);
 event Voted(uint256 indexed disputeId, address indexed mediator, uint16 sellerBps, uint16 votes);
@@ -50,10 +54,14 @@ _;
 
 function openDispute(address escrow) external returns (uint256 disputeId) {
 require(escrow != address(0), "escrow=0");
-require(IEscrowRuling(escrow).status() == 4, "escrow-not-disputed");
+IEscrowRuling e = IEscrowRuling(escrow);
+require(msg.sender == e.buyer() || msg.sender == e.seller(), "not-party");
+require(e.status() == 4, "escrow-not-disputed");
+require(activeDisputeByEscrow[escrow] == 0, "active-dispute");
 disputeId = ++nextDisputeId;
 disputes[disputeId].escrow = escrow;
 disputes[disputeId].openedAt = uint64(block.timestamp);
+activeDisputeByEscrow[escrow] = disputeId;
 emit DisputeOpened(disputeId, escrow);
 }
 
@@ -66,13 +74,15 @@ require(!d.voted[msg.sender], "voted");
 require(block.timestamp <= d.openedAt + voteWindow, "vote-closed");
 
 d.voted[msg.sender] = true;
-d.sellerBps = sellerBps;
+d.sumSellerBps += sellerBps;
 d.yesVotes += 1;
+d.sellerBps = uint16(d.sumSellerBps / d.yesVotes);
 
 emit Voted(disputeId, msg.sender, sellerBps, d.yesVotes);
 
 if (d.yesVotes >= threshold && d.yesVotes >= quorum) {
 d.resolved = true;
+activeDisputeByEscrow[d.escrow] = 0;
 IEscrowRuling(d.escrow).applyRuling(d.sellerBps);
 emit Resolved(disputeId, d.sellerBps);
 }
@@ -86,6 +96,7 @@ require(block.timestamp > d.openedAt + voteWindow, "vote-active");
 require(d.yesVotes >= threshold && d.yesVotes >= quorum, "not-enough-votes");
 
 d.resolved = true;
+activeDisputeByEscrow[d.escrow] = 0;
 IEscrowRuling(d.escrow).applyRuling(d.sellerBps);
 emit Resolved(disputeId, d.sellerBps);
 }
