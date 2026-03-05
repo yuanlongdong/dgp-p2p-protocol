@@ -31,6 +31,18 @@ Mini App (`apps/miniapp/.env`):
 - `VITE_DGP_GOVERNOR`
 - `VITE_COMPLIANCE_REGISTRY`
 
+## One-Command Demo Env
+```bash
+# Arbitrum Sepolia
+pnpm demo:prepare:arb -- "https://api.studio.thegraph.com/query/<id>/<name>/latest"
+
+# Optimism Sepolia
+pnpm demo:prepare:op -- "https://api.studio.thegraph.com/query/<id>/<name>/latest"
+```
+该命令会读取 `packages/contracts/deployments/<network>.json` 并写入：
+- `apps/web/.env.local`
+- `apps/miniapp/.env.local`
+
 ## Ops Docs
 - `docs/demo-runbook.md`
 - `docs/deploy-ops.md`
