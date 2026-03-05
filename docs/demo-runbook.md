@@ -56,6 +56,7 @@ pnpm dev:bot
 export RPC_URL=<rpc>
 export PRIVATE_KEY=<admin key>
 export COMPLIANCE_REGISTRY=<registry>
+export PROVIDER_SHARED_SECRET=<required>
 pnpm dev:compliance-gateway
 ```
 
