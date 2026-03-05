@@ -14,6 +14,8 @@
 "subgraph:sync:op": "pnpm --filter @dgp/subgraph sync:op",
 "demo:prepare": "node scripts/ops/prepare-demo-env.mjs",
 "demo:prepare:arb": "node scripts/ops/prepare-demo-env.mjs arbSepolia",
-"demo:prepare:op": "node scripts/ops/prepare-demo-env.mjs opSepolia"
+"demo:prepare:op": "node scripts/ops/prepare-demo-env.mjs opSepolia",
+"demo:e2e:arb": "node scripts/ops/e2e-demo.mjs arbSepolia",
+"demo:e2e:op": "node scripts/ops/e2e-demo.mjs opSepolia"
 }
 }
