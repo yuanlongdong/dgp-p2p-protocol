@@ -9,7 +9,7 @@
 
 | 需求项 | 状态 | 代码证据 | 主要缺口 |
 |---|---|---|---|
-| Escrow 合约（创建、锁定、释放、超时处理） | 已完成 | `packages/contracts/contracts/EscrowCore.sol` `packages/contracts/contracts/EscrowFactory.sol` `packages/contracts/test/escrow.spec.ts` | 无 |
+| Escrow 合约（创建、锁定、释放、超时处理） | 已完成 | `packages/contracts/contracts/EscrowCore.sol` `packages/contracts/contracts/EscrowFactory.sol` `packages/contracts/test/escrow.spec.ts` `packages/contracts/test/factory-pause.spec.ts` | 无 |
 | 担保合约（≥150% 超额抵押） | 已完成 | `packages/contracts/contracts/GuarantorVault.sol` `packages/contracts/test/collateral-flow.spec.ts` | 无 |
 | 争议解决（证据、投票、分配） | 已完成 | `packages/contracts/contracts/DisputeModule.sol` `packages/contracts/test/dispute.spec.ts` | 无 |
 | Kleros 仲裁接入 | 部分完成 | `packages/contracts/contracts/KlerosAdapterMock.sol` `packages/contracts/test/kleros-adapter.spec.ts` | 仍为 Mock，未接入 Kleros 主网/测试网真实合约 |
