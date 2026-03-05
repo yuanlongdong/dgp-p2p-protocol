@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import "@openzeppelin/contracts/utils/Pausable.sol";
+
 interface IEscrowRuling {
 function applyRuling(uint16 sellerBps) external;
 function status() external view returns (uint8);
@@ -16,7 +18,7 @@ interface IKlerosAdapter {
 function createDispute(uint256 localDisputeId, address escrow, bytes calldata extraData) external returns (uint256 externalDisputeId);
 }
 
-contract DisputeModule {
+contract DisputeModule is Pausable {
 struct Dispute {
 address escrow;
 bool resolved;
@@ -78,7 +80,15 @@ klerosAdapter = adapter;
 emit KlerosAdapterUpdated(adapter);
 }
 
-function openDispute(address escrow) public returns (uint256 disputeId) {
+function pause() external onlyOwner {
+_pause();
+}
+
+function unpause() external onlyOwner {
+_unpause();
+}
+
+function openDispute(address escrow) public whenNotPaused returns (uint256 disputeId) {
 require(escrow != address(0), "escrow=0");
 IEscrowRuling e = IEscrowRuling(escrow);
 require(msg.sender == e.buyer() || msg.sender == e.seller(), "not-party");
@@ -91,7 +101,7 @@ activeDisputeByEscrow[escrow] = disputeId;
 emit DisputeOpened(disputeId, escrow);
 }
 
-function openDisputeWithKleros(address escrow, bytes calldata extraData) external returns (uint256 disputeId, uint256 externalDisputeId) {
+function openDisputeWithKleros(address escrow, bytes calldata extraData) external whenNotPaused returns (uint256 disputeId, uint256 externalDisputeId) {
 require(klerosAdapter != address(0), "kleros-not-set");
 disputeId = openDispute(escrow);
 Dispute storage d = disputes[disputeId];
@@ -101,7 +111,7 @@ d.externalDisputeId = externalDisputeId;
 emit KlerosDisputeOpened(disputeId, externalDisputeId, escrow);
 }
 
-function vote(uint256 disputeId, uint16 sellerBps) external onlyMediator {
+function vote(uint256 disputeId, uint16 sellerBps) external onlyMediator whenNotPaused {
 require(sellerBps <= 10000, "bad-bps");
 Dispute storage d = disputes[disputeId];
 require(d.escrow != address(0), "no-dispute");
@@ -125,7 +135,7 @@ emit Resolved(disputeId, d.sellerBps);
 }
 }
 
-function resolveAfterWindow(uint256 disputeId) external {
+function resolveAfterWindow(uint256 disputeId) external whenNotPaused {
 Dispute storage d = disputes[disputeId];
 require(d.escrow != address(0), "no-dispute");
 require(!d.resolved, "resolved");
