@@ -15,6 +15,9 @@ pnpm build
 cd packages/contracts
 cp .env.example .env
 # fill PRIVATE_KEY + RPC URL
+# optional:
+# KLEROS_ARBITRATOR=0x...
+# CHAINLINK_FEEDS=0xTokenA:0xFeedA:3600,0xTokenB:0xFeedB:1800
 pnpm deploy:arb-sepolia
 pnpm deploy:op-sepolia
 ```
@@ -51,6 +54,32 @@ pnpm demo:e2e:arb -- "https://api.studio.thegraph.com/query/<id>/<name>/latest"
 
 # 如需从本地直接部署再执行全流程：
 node scripts/ops/e2e-demo.mjs arbSepolia --deploy "https://api.studio.thegraph.com/query/<id>/<name>/latest"
+```
+
+## Telegram Bot (Chinese Assistant + Notification Entry)
+```bash
+# env
+export TELEGRAM_BOT_TOKEN=<bot token>
+pnpm dev:bot
+```
+
+## Compliance Gateway (External KYC/AML Provider Bridge)
+```bash
+# env
+export RPC_URL=<arb/op rpc>
+export PRIVATE_KEY=<admin key>
+export COMPLIANCE_REGISTRY=<on-chain compliance registry>
+export PROVIDER_SHARED_SECRET=<optional shared secret>
+pnpm dev:compliance-gateway
+```
+Webhook:
+- `POST /provider/kyc-result`
+- body: `{ account, kycApproved, blacklisted, sanctioned, riskBps }`
+
+## Ops Healthcheck
+```bash
+pnpm ops:healthcheck:arb -- "<rpc_url>" "<subgraph_url>"
+pnpm ops:healthcheck:op -- "<rpc_url>" "<subgraph_url>"
 ```
 
 ## Ops Docs
