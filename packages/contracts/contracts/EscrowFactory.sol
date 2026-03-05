@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./EscrowCore.sol";
 import "./GuarantorVault.sol";
@@ -10,10 +11,15 @@ interface IComplianceRegistry {
 function isAllowed(address account) external view returns (bool);
 }
 
-contract EscrowFactory is Ownable {
+interface IOracleGuard {
+function isPriceSafe(address token) external view returns (bool);
+}
+
+contract EscrowFactory is Ownable, Pausable {
 event EscrowCreated(uint256 indexed escrowId, address indexed buyer, address indexed seller, address escrow);
 event CollateralConfigUpdated(address indexed vault, uint16 minCollateralBps);
 event ComplianceConfigUpdated(address indexed registry, bool enforceCompliance);
+event RiskConfigUpdated(address indexed guard, bool enforceRiskGuard);
 
 uint256 public nextEscrowId;
 mapping(uint256 => address) public escrows;
@@ -22,9 +28,19 @@ address public guarantorVault;
 uint16 public minCollateralBps = 15000;
 address public complianceRegistry;
 bool public enforceCompliance;
+address public riskGuard;
+bool public enforceRiskGuard;
 
 constructor(address _disputeModule) Ownable(msg.sender) {
 disputeModule = _disputeModule;
+}
+
+function pause() external onlyOwner {
+_pause();
+}
+
+function unpause() external onlyOwner {
+_unpause();
 }
 
 function setCollateralConfig(address vault, uint16 minBps) external onlyOwner {
@@ -38,6 +54,12 @@ function setComplianceConfig(address registry, bool enforce) external onlyOwner 
 complianceRegistry = registry;
 enforceCompliance = enforce;
 emit ComplianceConfigUpdated(registry, enforce);
+}
+
+function setRiskConfig(address guard, bool enforce) external onlyOwner {
+riskGuard = guard;
+enforceRiskGuard = enforce;
+emit RiskConfigUpdated(guard, enforce);
 }
 
 function createEscrow(
@@ -96,11 +118,13 @@ uint256 amount,
 uint64 timeoutAt,
 string memory evidenceCID
 ) internal returns (uint256 escrowId, address escrowAddr) {
+require(!paused(), "factory-paused");
 require(seller != address(0), "seller=0");
 require(amount > 0, "amount=0");
 require(timeoutAt > block.timestamp, "bad-timeout");
 _checkCompliance(buyer);
 _checkCompliance(seller);
+_checkRisk(token);
 
 escrowId = ++nextEscrowId;
 EscrowCore escrow = new EscrowCore(buyer, seller, token, amount, timeoutAt, evidenceCID, disputeModule);
@@ -113,5 +137,11 @@ function _checkCompliance(address account) internal view {
 if (!enforceCompliance) return;
 require(complianceRegistry != address(0), "compliance-not-set");
 require(IComplianceRegistry(complianceRegistry).isAllowed(account), "compliance-blocked");
+}
+
+function _checkRisk(address token) internal view {
+if (!enforceRiskGuard) return;
+require(riskGuard != address(0), "risk-not-set");
+require(IOracleGuard(riskGuard).isPriceSafe(token), "risk-blocked");
 }
 }
