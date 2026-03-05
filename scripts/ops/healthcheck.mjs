@@ -55,6 +55,12 @@ const rpc = await checkRpc();
 const subgraph = await checkSubgraph();
 
 console.log(JSON.stringify({ network, deploymentPath, rpc, subgraph }, null, 2));
-if (!rpc.ok && !subgraph.ok) {
-  fail("both rpc and subgraph checks failed");
+if (rpcUrl && !rpc.ok) {
+  fail("rpc check failed");
+}
+if (subgraphUrl && !subgraph.ok) {
+  fail("subgraph check failed");
+}
+if (!rpcUrl && !subgraphUrl) {
+  fail("no rpc/subgraph endpoint provided");
 }
