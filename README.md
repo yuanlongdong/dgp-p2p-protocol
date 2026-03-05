@@ -70,6 +70,9 @@ export RPC_URL=<arb/op rpc>
 export PRIVATE_KEY=<admin key>
 export COMPLIANCE_REGISTRY=<on-chain compliance registry>
 export PROVIDER_SHARED_SECRET=<required shared secret>
+# optional hardening:
+# export ALERT_WEBHOOK_URL=<ops webhook>
+# export AUDIT_LOG_PATH=./logs/compliance-gateway.log
 pnpm dev:compliance-gateway
 ```
 Webhook:
