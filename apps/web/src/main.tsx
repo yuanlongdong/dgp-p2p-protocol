@@ -115,6 +115,7 @@ const { writeContractAsync, isPending } = useWriteContract();
 
 const factory = (import.meta as any).env?.VITE_ESCROW_FACTORY || "";
 const dispute = (import.meta as any).env?.VITE_DISPUTE_MODULE || "";
+const subgraphUrl = (import.meta as any).env?.VITE_SUBGRAPH_URL || "";
 const expectedChain = arbitrumSepolia.id;
 const wrongChain = isConnected && chainId !== expectedChain;
 
@@ -134,6 +135,7 @@ const [voteSellerBps, setVoteSellerBps] = useState("7000");
 
 const [escrowActionAddr, setEscrowActionAddr] = useState("");
 const [escrowActionCid, setEscrowActionCid] = useState("ipfs://dispute");
+const [historyJson, setHistoryJson] = useState("[]");
 
 const nextEscrow = useReadContract({
 address: factory ? (factory as `0x${string}`) : undefined,
@@ -294,6 +296,30 @@ setStatusText("已提交 markDispute，等待链上确认...");
 setStatusText("markDispute 失败");
 setUiError(e?.shortMessage || e?.message || "交易失败");
 }
+
+async function onLoadHistory() {
+clearError();
+if (!subgraphUrl) return setUiError("请配置 VITE_SUBGRAPH_URL");
+try {
+setStatusText("查询历史中...");
+const query = `
+query Histories {
+  escrows(first: 10, orderBy: createdAt, orderDirection: desc) { id escrowId buyer seller escrow createdAt }
+  disputes(first: 10, orderBy: openedAt, orderDirection: desc) { id disputeId escrow resolved sellerBps votes openedAt }
+}`;
+const resp = await fetch(subgraphUrl, {
+method: "POST",
+headers: { "content-type": "application/json" },
+body: JSON.stringify({ query })
+});
+const data = await resp.json();
+setHistoryJson(JSON.stringify(data?.data ?? data, null, 2));
+setStatusText("历史查询完成");
+} catch (e: any) {
+setStatusText("历史查询失败");
+setUiError(e?.message || "query failed");
+}
+}
 }
 
 return (
@@ -352,6 +378,14 @@ return (
 <button onClick={onEscrowFund} disabled={isPending} style={{ marginRight: 8 }}>Fund</button>
 <button onClick={onEscrowRelease} disabled={isPending} style={{ marginRight: 8 }}>Release</button>
 <button onClick={onEscrowDispute} disabled={isPending}>Mark Dispute</button>
+
+<hr />
+<h3>History (Subgraph)</h3>
+<p>Subgraph: {subgraphUrl || "未配置"}</p>
+<button onClick={onLoadHistory}>刷新历史</button>
+<pre style={{ background: "#f6f6f6", padding: 12, borderRadius: 8, overflow: "auto" }}>
+{historyJson}
+</pre>
 </main>
 );
 }

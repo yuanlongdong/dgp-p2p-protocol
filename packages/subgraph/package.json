@@ -5,6 +5,8 @@
   "scripts": {
     "build": "graph codegen subgraph.yaml && graph build subgraph.yaml",
     "codegen": "graph codegen subgraph.yaml",
+    "sync:arb": "node scripts/update-addresses.mjs arbSepolia",
+    "sync:op": "node scripts/update-addresses.mjs opSepolia",
     "deploy:studio": "graph deploy --studio dgp-p2p subgraph.yaml"
   },
   "devDependencies": {

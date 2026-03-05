@@ -9,6 +9,8 @@
 "dev:miniapp": "pnpm --filter @dgp/miniapp dev",
 "test:contracts": "pnpm --filter @dgp/contracts test",
 "subgraph:codegen": "pnpm --filter @dgp/subgraph codegen",
-"subgraph:build": "pnpm --filter @dgp/subgraph build"
+"subgraph:build": "pnpm --filter @dgp/subgraph build",
+"subgraph:sync:arb": "pnpm --filter @dgp/subgraph sync:arb",
+"subgraph:sync:op": "pnpm --filter @dgp/subgraph sync:op"
 }
 }
