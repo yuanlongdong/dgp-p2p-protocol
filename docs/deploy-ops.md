@@ -33,6 +33,15 @@ pnpm subgraph:build
 pnpm demo:prepare:arb -- "https://api.studio.thegraph.com/query/<id>/<name>/latest"
 ```
 
+## 一键端到端验证
+```bash
+# 使用已有 deployment json
+pnpm demo:e2e:arb -- "https://api.studio.thegraph.com/query/<id>/<name>/latest"
+
+# 包含本地部署（需要 PRIVATE_KEY 与 RPC 环境变量）
+node scripts/ops/e2e-demo.mjs arbSepolia --deploy "https://api.studio.thegraph.com/query/<id>/<name>/latest"
+```
+
 ## 上线前检查（建议）
 1. `packages/contracts/deployments/<network>.json` 存在且包含：
    - `escrowFactory`
