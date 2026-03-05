@@ -107,4 +107,6 @@ export async function deployAll() {
   console.log("Deployment file:", outPath);
   console.log("VITE_ESCROW_FACTORY=", output.escrowFactory);
   console.log("VITE_DISPUTE_MODULE=", output.disputeModule);
+  console.log("VITE_DGP_GOVERNOR=", output.dgpGovernor);
+  console.log("VITE_COMPLIANCE_REGISTRY=", output.complianceRegistry);
 }
