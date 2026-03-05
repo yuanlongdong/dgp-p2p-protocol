@@ -45,6 +45,20 @@ pnpm demo:e2e:arb -- "https://api.studio.thegraph.com/query/<id>/<name>/latest"
 node scripts/ops/e2e-demo.mjs arbSepolia "https://api.studio.thegraph.com/query/<id>/<name>/latest" --skip-ui-build
 ```
 
+## Telegram 中文助手 Bot（可选）
+```bash
+export TELEGRAM_BOT_TOKEN=<bot token>
+pnpm dev:bot
+```
+
+## 合规回调网关（可选）
+```bash
+export RPC_URL=<rpc>
+export PRIVATE_KEY=<admin key>
+export COMPLIANCE_REGISTRY=<registry>
+pnpm dev:compliance-gateway
+```
+
 ## Subgraph 地址同步
 ```bash
 pnpm subgraph:sync:arb   # 从 contracts/deployments/arbSepolia.json 写入 manifest
