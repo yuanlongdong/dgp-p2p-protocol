@@ -35,6 +35,11 @@ require(msg.sender == disputeModule, "not-dispute-module");
 _;
 }
 
+modifier onlyArbitrator() {
+require(msg.sender == arbitrator, "not-arbitrator");
+_;
+}
+
 function setDisputeModule(address disputeModule_) external onlyOwner {
 require(disputeModule_ != address(0), "dispute=0");
 disputeModule = disputeModule_;
@@ -59,7 +64,7 @@ externalToEscrow[externalDisputeId] = escrow;
 emit ExternalDisputeCreated(localDisputeId, externalDisputeId, escrow);
 }
 
-function relayRuling(uint256 externalDisputeId, uint16 sellerBps) external onlyOwner {
+function relayRuling(uint256 externalDisputeId, uint16 sellerBps) external onlyArbitrator {
 require(sellerBps <= 10000, "bad-bps");
 uint256 localDisputeId = externalToLocalDispute[externalDisputeId];
 require(localDisputeId != 0, "unknown-dispute");
