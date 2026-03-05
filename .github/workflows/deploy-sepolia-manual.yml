@@ -1,0 +1,41 @@
+name: deploy-sepolia-manual
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_network:
+        description: "Deployment target"
+        required: true
+        type: choice
+        options:
+          - arbSepolia
+          - opSepolia
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Deploy contracts
+        env:
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          ARB_SEPOLIA_RPC_URL: ${{ secrets.ARB_SEPOLIA_RPC_URL }}
+          OP_SEPOLIA_RPC_URL: ${{ secrets.OP_SEPOLIA_RPC_URL }}
+        run: |
+          if [ "${{ github.event.inputs.target_network }}" = "arbSepolia" ]; then
+            pnpm --filter @dgp/contracts deploy:arb-sepolia
+          else
+            pnpm --filter @dgp/contracts deploy:op-sepolia
+          fi
+      - name: Upload deployment artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployments-${{ github.event.inputs.target_network }}
+          path: packages/contracts/deployments/*.json
