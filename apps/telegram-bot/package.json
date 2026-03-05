@@ -1,0 +1,13 @@
+{
+  "name": "@dgp/telegram-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.mjs",
+    "build": "node -e \"console.log('telegram-bot build: noop')\""
+  },
+  "dependencies": {
+    "telegraf": "^4.16.3"
+  }
+}
