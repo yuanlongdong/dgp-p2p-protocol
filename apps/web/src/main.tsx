@@ -90,6 +90,58 @@ outputs: []
 }
 ] as const;
 
+const governorAbi = [
+{
+type: "function",
+name: "proposalCount",
+stateMutability: "view",
+inputs: [],
+outputs: [{ type: "uint256" }]
+},
+{
+type: "function",
+name: "state",
+stateMutability: "view",
+inputs: [{ name: "proposalId", type: "uint256" }],
+outputs: [{ type: "uint8" }]
+},
+{
+type: "function",
+name: "propose",
+stateMutability: "nonpayable",
+inputs: [
+{ name: "kind", type: "uint8" },
+{ name: "value", type: "uint16" },
+{ name: "description", type: "string" }
+],
+outputs: [{ type: "uint256" }]
+},
+{
+type: "function",
+name: "castVote",
+stateMutability: "nonpayable",
+inputs: [
+{ name: "proposalId", type: "uint256" },
+{ name: "support", type: "bool" }
+],
+outputs: []
+},
+{
+type: "function",
+name: "queue",
+stateMutability: "nonpayable",
+inputs: [{ name: "proposalId", type: "uint256" }],
+outputs: []
+},
+{
+type: "function",
+name: "execute",
+stateMutability: "nonpayable",
+inputs: [{ name: "proposalId", type: "uint256" }],
+outputs: []
+}
+] as const;
+
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
   constructor(props: { children: React.ReactNode }) {
     super(props);
@@ -115,6 +167,7 @@ const { writeContractAsync, isPending } = useWriteContract();
 
 const factory = (import.meta as any).env?.VITE_ESCROW_FACTORY || "";
 const dispute = (import.meta as any).env?.VITE_DISPUTE_MODULE || "";
+const governor = (import.meta as any).env?.VITE_DGP_GOVERNOR || "";
 const subgraphUrl = (import.meta as any).env?.VITE_SUBGRAPH_URL || "";
 const expectedChain = arbitrumSepolia.id;
 const wrongChain = isConnected && chainId !== expectedChain;
@@ -136,6 +189,11 @@ const [voteSellerBps, setVoteSellerBps] = useState("7000");
 const [escrowActionAddr, setEscrowActionAddr] = useState("");
 const [escrowActionCid, setEscrowActionCid] = useState("ipfs://dispute");
 const [historyJson, setHistoryJson] = useState("[]");
+const [proposalKind, setProposalKind] = useState("0");
+const [proposalValue, setProposalValue] = useState("120");
+const [proposalDesc, setProposalDesc] = useState("Adjust protocol parameter");
+const [govProposalId, setGovProposalId] = useState("1");
+const [govSupport, setGovSupport] = useState(true);
 
 const nextEscrow = useReadContract({
 address: factory ? (factory as `0x${string}`) : undefined,
@@ -150,6 +208,21 @@ abi: disputeAbi,
 functionName: "getDispute",
 args: [BigInt(disputeId || "1")],
 query: { enabled: !!dispute }
+});
+
+const proposalCount = useReadContract({
+address: governor ? (governor as `0x${string}`) : undefined,
+abi: governorAbi,
+functionName: "proposalCount",
+query: { enabled: !!governor }
+});
+
+const proposalState = useReadContract({
+address: governor ? (governor as `0x${string}`) : undefined,
+abi: governorAbi,
+functionName: "state",
+args: [BigInt(govProposalId || "1")],
+query: { enabled: !!governor && /^\d+$/.test(govProposalId || "") }
 });
 
 const txReceipt = useWaitForTransactionReceipt({ hash: txHash });
@@ -296,6 +369,7 @@ setStatusText("已提交 markDispute，等待链上确认...");
 setStatusText("markDispute 失败");
 setUiError(e?.shortMessage || e?.message || "交易失败");
 }
+}
 
 async function onLoadHistory() {
 clearError();
@@ -320,8 +394,96 @@ setStatusText("历史查询失败");
 setUiError(e?.message || "query failed");
 }
 }
+
+async function onGovPropose() {
+clearError();
+if (!governor) return setUiError("请先配置 VITE_DGP_GOVERNOR");
+if (!/^[01]$/.test(proposalKind)) return setUiError("kind 仅支持 0(费率)/1(抵押率)");
+if (!/^\d+$/.test(proposalValue)) return setUiError("proposal value 无效");
+if (!proposalDesc.trim()) return setUiError("description 不能为空");
+if (!canTransact) return setUiError("请先连接钱包并切换到 Arbitrum Sepolia");
+try {
+setStatusText("发送 propose 交易中...");
+const hash = await writeContractAsync({
+address: governor as `0x${string}`,
+abi: governorAbi,
+functionName: "propose",
+args: [Number(proposalKind), Number(proposalValue), proposalDesc]
+});
+setTxHash(hash);
+setStatusText("已提交 propose，等待链上确认...");
+setTimeout(() => proposalCount.refetch(), 3000);
+} catch (e: any) {
+setStatusText("propose 失败");
+setUiError(e?.shortMessage || e?.message || "交易失败");
+}
 }
 
+async function onGovVote() {
+clearError();
+if (!governor) return setUiError("请先配置 VITE_DGP_GOVERNOR");
+if (!/^\d+$/.test(govProposalId)) return setUiError("proposalId 无效");
+if (!canTransact) return setUiError("请先连接钱包并切换到 Arbitrum Sepolia");
+try {
+setStatusText("发送 castVote 交易中...");
+const hash = await writeContractAsync({
+address: governor as `0x${string}`,
+abi: governorAbi,
+functionName: "castVote",
+args: [BigInt(govProposalId), govSupport]
+});
+setTxHash(hash);
+setStatusText("已提交 castVote，等待链上确认...");
+setTimeout(() => proposalState.refetch(), 3000);
+} catch (e: any) {
+setStatusText("castVote 失败");
+setUiError(e?.shortMessage || e?.message || "交易失败");
+}
+}
+
+async function onGovQueue() {
+clearError();
+if (!governor) return setUiError("请先配置 VITE_DGP_GOVERNOR");
+if (!/^\d+$/.test(govProposalId)) return setUiError("proposalId 无效");
+if (!canTransact) return setUiError("请先连接钱包并切换到 Arbitrum Sepolia");
+try {
+setStatusText("发送 queue 交易中...");
+const hash = await writeContractAsync({
+address: governor as `0x${string}`,
+abi: governorAbi,
+functionName: "queue",
+args: [BigInt(govProposalId)]
+});
+setTxHash(hash);
+setStatusText("已提交 queue，等待链上确认...");
+setTimeout(() => proposalState.refetch(), 3000);
+} catch (e: any) {
+setStatusText("queue 失败");
+setUiError(e?.shortMessage || e?.message || "交易失败");
+}
+}
+
+async function onGovExecute() {
+clearError();
+if (!governor) return setUiError("请先配置 VITE_DGP_GOVERNOR");
+if (!/^\d+$/.test(govProposalId)) return setUiError("proposalId 无效");
+if (!canTransact) return setUiError("请先连接钱包并切换到 Arbitrum Sepolia");
+try {
+setStatusText("发送 execute 交易中...");
+const hash = await writeContractAsync({
+address: governor as `0x${string}`,
+abi: governorAbi,
+functionName: "execute",
+args: [BigInt(govProposalId)]
+});
+setTxHash(hash);
+setStatusText("已提交 execute，等待链上确认...");
+setTimeout(() => proposalState.refetch(), 3000);
+} catch (e: any) {
+setStatusText("execute 失败");
+setUiError(e?.shortMessage || e?.message || "交易失败");
+}
+}
 return (
 <main style={{ maxWidth: 860, margin: "24px auto", fontFamily: "sans-serif", lineHeight: 1.5 }}>
 <h1>DGP-P2P Web</h1>
@@ -336,6 +498,7 @@ return (
 {wrongChain && <button onClick={() => switchChain({ chainId: expectedChain })}>切换到 Arbitrum Sepolia</button>}
 <p>Factory: {factory || "未配置"}</p>
 <p>Dispute: {dispute || "未配置"}</p>
+<p>Governor: {governor || "未配置"}</p>
 <p>nextEscrowId: {nextEscrow.isLoading ? "读取中..." : String(nextEscrow.data ?? "-")}</p>
 <p>交易状态：{isPending ? "钱包确认中..." : statusText}</p>
 {txHash && <p>Tx: {txHash}</p>}
@@ -386,6 +549,30 @@ return (
 <pre style={{ background: "#f6f6f6", padding: 12, borderRadius: 8, overflow: "auto" }}>
 {historyJson}
 </pre>
+
+<hr />
+<h3>Governance</h3>
+<p>proposalCount: {proposalCount.isLoading ? "读取中..." : String(proposalCount.data ?? "-")}</p>
+<input placeholder="kind: 0=buyerFeeBps, 1=minCollateralBps" value={proposalKind} onChange={(e) => setProposalKind(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<input placeholder="value" value={proposalValue} onChange={(e) => setProposalValue(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<input placeholder="description" value={proposalDesc} onChange={(e) => setProposalDesc(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<button onClick={onGovPropose} disabled={isPending} style={{ marginRight: 8 }}>Propose</button>
+
+<div style={{ marginTop: 12 }}>
+<input placeholder="proposalId" value={govProposalId} onChange={(e) => setGovProposalId(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<label style={{ marginRight: 8 }}>
+<input type="radio" checked={govSupport} onChange={() => setGovSupport(true)} />
+ 支持
+</label>
+<label>
+<input type="radio" checked={!govSupport} onChange={() => setGovSupport(false)} />
+ 反对
+</label>
+</div>
+<p>state: {proposalState.isLoading ? "读取中..." : String(proposalState.data ?? "-")}</p>
+<button onClick={onGovVote} disabled={isPending} style={{ marginRight: 8 }}>Cast Vote</button>
+<button onClick={onGovQueue} disabled={isPending} style={{ marginRight: 8 }}>Queue</button>
+<button onClick={onGovExecute} disabled={isPending}>Execute</button>
 </main>
 );
 }
