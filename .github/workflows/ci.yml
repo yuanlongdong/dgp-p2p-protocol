@@ -23,6 +23,39 @@ jobs:
       - name: Build workspaces
         run: pnpm build
 
+  demo-e2e-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Prepare mock deployment file
+        run: |
+          mkdir -p packages/contracts/deployments
+          cat > packages/contracts/deployments/arbSepolia.json << 'EOF'
+          {
+            "network": "arbSepolia",
+            "escrowFactory": "0x1111111111111111111111111111111111111111",
+            "disputeModule": "0x2222222222222222222222222222222222222222",
+            "complianceRegistry": "0x3333333333333333333333333333333333333333",
+            "dgpGovernor": "0x4444444444444444444444444444444444444444"
+          }
+          EOF
+      - name: Run demo e2e pipeline (skip ui build)
+        run: pnpm demo:e2e:arb -- "https://example.com/subgraph" --skip-ui-build
+      - name: Verify generated env files
+        run: |
+          test -f apps/web/.env.local
+          test -f apps/miniapp/.env.local
+          grep -q "^VITE_ESCROW_FACTORY=" apps/web/.env.local
+          grep -q "^VITE_DGP_GOVERNOR=" apps/web/.env.local
+          grep -q "^VITE_COMPLIANCE_REGISTRY=" apps/miniapp/.env.local
+
   security-baseline:
     runs-on: ubuntu-latest
     steps:
