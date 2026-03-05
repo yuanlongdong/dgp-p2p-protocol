@@ -48,7 +48,8 @@ describe("KlerosAdapter (external arbitrator route)", function () {
     await (await dispute.connect(buyer).openDisputeWithKleros(escrowAddr, "0x1234")).wait();
     expect(await adapter.externalToLocalDispute(1n)).to.equal(1n);
 
-    await adapter.relayRuling(1n, 7000);
+    await expect(adapter.relayRuling(1n, 7000)).to.be.revertedWith("not-arbitrator");
+    await arbitrator.giveRuling(await adapter.getAddress(), 1n, 7000);
     expect(await token.balanceOf(seller.address)).to.equal(ethers.parseUnits("70", 18));
     expect(await token.balanceOf(buyer.address)).to.equal(ethers.parseUnits("30", 18));
   });
