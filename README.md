@@ -18,3 +18,7 @@ cp .env.example .env
 pnpm deploy:arb-sepolia
 pnpm deploy:op-sepolia
 ```
+
+## Ops Docs
+- `docs/demo-runbook.md`
+- `docs/deploy-ops.md`
