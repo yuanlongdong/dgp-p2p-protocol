@@ -56,3 +56,4 @@ node scripts/ops/e2e-demo.mjs arbSepolia --deploy "https://api.studio.thegraph.c
 ## Ops Docs
 - `docs/demo-runbook.md`
 - `docs/deploy-ops.md`
+- `docs/status-matrix.md`
