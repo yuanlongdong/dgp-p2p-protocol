@@ -21,4 +21,18 @@ await router.route(await token.getAddress(), payer.address, seller.address, amou
 expect(await token.balanceOf(feeRecipient.address)).to.equal(ethers.parseUnits("2.5", 18));
 expect(await token.balanceOf(seller.address)).to.equal(ethers.parseUnits("97.5", 18));
 });
+
+it("should restrict fee config to owner", async function () {
+const [owner, other, feeRecipient] = await ethers.getSigners();
+const Router = await ethers.getContractFactory("FeeRouter");
+const router = await Router.deploy(owner.address, feeRecipient.address, 250);
+await router.waitForDeployment();
+
+await expect(router.connect(other).setFeeConfig(other.address, 100)).to.be.revertedWithCustomError(
+router,
+  "OwnableUnauthorizedAccount"
+);
+await router.setFeeConfig(other.address, 100);
+expect(await router.feeBps()).to.equal(100);
+});
 });

@@ -115,4 +115,54 @@ const escrowAddr = await factory.escrows(1n);
 
 await expect(dispute.openDispute(escrowAddr)).to.be.revertedWith("escrow-not-disputed");
 });
+
+it("should enforce resolveAfterWindow guards", async function () {
+const { m1, dispute } = await setup({ threshold: 3, quorum: 3, voteWindow: 3 });
+
+await expect(dispute.resolveAfterWindow(1)).to.be.revertedWith("vote-active");
+await dispute.connect(m1).vote(1, 6500);
+
+await ethers.provider.send("evm_increaseTime", [4]);
+await ethers.provider.send("evm_mine", []);
+await expect(dispute.resolveAfterWindow(1)).to.be.revertedWith("not-enough-votes");
+});
+
+it("should block mediator votes when registry is paused", async function () {
+const [owner, buyer, seller, m1, m2] = await ethers.getSigners();
+
+const Mock = await ethers.getContractFactory("MockERC20");
+const token = await Mock.deploy("MockUSDT", "mUSDT");
+await token.waitForDeployment();
+const amount = ethers.parseUnits("10", 18);
+await token.mint(buyer.address, amount);
+
+const Registry = await ethers.getContractFactory("MediatorRegistry");
+const registry = await Registry.deploy(owner.address);
+await registry.waitForDeployment();
+await registry.setMediator(m1.address, true);
+await registry.setMediator(m2.address, true);
+
+const Dispute = await ethers.getContractFactory("DisputeModule");
+const dispute = await Dispute.deploy(await registry.getAddress(), 2, 2, 3600);
+await dispute.waitForDeployment();
+
+const Factory = await ethers.getContractFactory("EscrowFactory");
+const factory = await Factory.deploy(await dispute.getAddress());
+await factory.waitForDeployment();
+
+const now = (await ethers.provider.getBlock("latest"))!.timestamp;
+await (await factory.connect(buyer).createEscrow(
+seller.address, await token.getAddress(), amount, now + 3600, "ipfs://evidence"
+)).wait();
+const escrowAddr = await factory.escrows(1n);
+const escrow = await ethers.getContractAt("EscrowCore", escrowAddr);
+
+await token.connect(buyer).approve(escrowAddr, amount);
+await escrow.connect(buyer).fund();
+await escrow.connect(buyer).markDispute("ipfs://dispute");
+await dispute.openDispute(escrowAddr);
+
+await registry.pause();
+await expect(dispute.connect(m1).vote(1, 7000)).to.be.revertedWith("not-mediator");
+});
 });
