@@ -380,6 +380,15 @@ const query = `
 query Histories {
   escrows(first: 10, orderBy: createdAt, orderDirection: desc) { id escrowId buyer seller escrow createdAt }
   disputes(first: 10, orderBy: openedAt, orderDirection: desc) { id disputeId escrow resolved sellerBps votes openedAt }
+  governanceProposals(first: 10, orderBy: createdAt, orderDirection: desc) {
+    id proposalId proposer kind value description forVotes againstVotes queued executed canceled state createdAt
+  }
+  governanceVotes(first: 20, orderBy: timestamp, orderDirection: desc) {
+    id proposal { id } voter support weight timestamp
+  }
+  complianceActions(first: 20, orderBy: timestamp, orderDirection: desc) {
+    id action account actor boolValue riskBps maxRiskBps timestamp
+  }
 }`;
 const resp = await fetch(subgraphUrl, {
 method: "POST",
