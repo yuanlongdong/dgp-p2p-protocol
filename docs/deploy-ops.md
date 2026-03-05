@@ -51,6 +51,30 @@ export PROVIDER_SHARED_SECRET=<required>
 pnpm dev:compliance-gateway
 ```
 
+请求头（防重放/签名）：
+- `x-provider-ts`: unix 秒级时间戳
+- `x-provider-nonce`: 唯一随机串
+- `x-provider-signature`: `hex(hmac_sha256(secret, ts + "." + nonce + "." + rawBody))`
+- `x-idempotency-key`: 可选，重复请求去重
+
+请求体：
+```json
+{
+  "account": "0x...",
+  "kycApproved": true,
+  "blacklisted": false,
+  "sanctioned": false,
+  "riskBps": 1200
+}
+```
+
+## 紧急处置（Kill Switch）
+`EscrowFactory` 已支持 pause/unpause。  
+建议流程：
+1. 监控报警触发后，立即执行 `pause()`
+2. 保留争议处理与资金释放应急通道
+3. 根因修复后执行 `unpause()`
+
 ## 运行健康检查
 ```bash
 pnpm ops:healthcheck:arb -- "<rpc_url>" "<subgraph_url>"
