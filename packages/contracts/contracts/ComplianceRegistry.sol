@@ -18,6 +18,13 @@ event BlacklistSet(address indexed account, bool blacklisted);
 event SanctionSet(address indexed account, bool sanctioned);
 event AmlRiskSet(address indexed account, uint16 riskBps);
 event AmlConfigSet(bool enforce, uint16 maxRiskBps);
+event ComplianceBatchSet(
+address indexed account,
+bool kycApproved,
+bool blacklisted,
+bool sanctioned,
+uint16 riskBps
+);
 
 constructor(address initialOwner) Ownable(initialOwner) {
 isAdmin[initialOwner] = true;
@@ -64,6 +71,26 @@ require(maxRiskBps <= 10000, "risk>100%");
 enforceAml = enforce;
 maxAmlRiskBps = maxRiskBps;
 emit AmlConfigSet(enforce, maxRiskBps);
+}
+
+function setComplianceData(
+address account,
+bool kycApproved,
+bool blacklisted,
+bool sanctioned,
+uint16 riskBps
+) external onlyAdmin {
+require(account != address(0), "account=0");
+require(riskBps <= 10000, "risk>100%");
+isKycApproved[account] = kycApproved;
+isBlacklisted[account] = blacklisted;
+isSanctioned[account] = sanctioned;
+amlRiskScoreBps[account] = riskBps;
+emit KycSet(account, kycApproved);
+emit BlacklistSet(account, blacklisted);
+emit SanctionSet(account, sanctioned);
+emit AmlRiskSet(account, riskBps);
+emit ComplianceBatchSet(account, kycApproved, blacklisted, sanctioned, riskBps);
 }
 
 function isAllowed(address account) external view returns (bool) {
