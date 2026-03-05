@@ -43,6 +43,16 @@ pnpm demo:prepare:op -- "https://api.studio.thegraph.com/query/<id>/<name>/lates
 - `apps/web/.env.local`
 - `apps/miniapp/.env.local`
 
+## End-to-End Demo Pipeline
+```bash
+# 已有 deployment json 的情况下，一键串联：
+# subgraph sync -> subgraph build -> env 回填 -> web/miniapp build
+pnpm demo:e2e:arb -- "https://api.studio.thegraph.com/query/<id>/<name>/latest"
+
+# 如需从本地直接部署再执行全流程：
+node scripts/ops/e2e-demo.mjs arbSepolia --deploy "https://api.studio.thegraph.com/query/<id>/<name>/latest"
+```
+
 ## Ops Docs
 - `docs/demo-runbook.md`
 - `docs/deploy-ops.md`
