@@ -7,16 +7,13 @@ const COMPLIANCE_REGISTRY = process.env.COMPLIANCE_REGISTRY || "";
 const PORT = Number(process.env.PORT || 8787);
 const PROVIDER_SHARED_SECRET = process.env.PROVIDER_SHARED_SECRET || "";
 
-if (!RPC_URL || !PRIVATE_KEY || !COMPLIANCE_REGISTRY) {
-  console.error("[compliance-gateway] RPC_URL / PRIVATE_KEY / COMPLIANCE_REGISTRY are required");
+if (!RPC_URL || !PRIVATE_KEY || !COMPLIANCE_REGISTRY || !PROVIDER_SHARED_SECRET) {
+  console.error("[compliance-gateway] RPC_URL / PRIVATE_KEY / COMPLIANCE_REGISTRY / PROVIDER_SHARED_SECRET are required");
   process.exit(1);
 }
 
 const abi = [
-  "function setKyc(address account, bool approved)",
-  "function setBlacklist(address account, bool blacklisted)",
-  "function setSanction(address account, bool sanctioned)",
-  "function setAmlRiskScore(address account, uint16 riskBps)"
+  "function setComplianceData(address account, bool kycApproved, bool blacklisted, bool sanctioned, uint16 riskBps)"
 ];
 
 const provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -27,7 +24,6 @@ const app = express();
 app.use(express.json());
 
 function verifyAuth(req) {
-  if (!PROVIDER_SHARED_SECRET) return true;
   return req.header("x-provider-secret") === PROVIDER_SHARED_SECRET;
 }
 
@@ -37,6 +33,13 @@ function okAddress(value) {
   } catch {
     return "";
   }
+}
+
+function parseBool(value, name) {
+  if (value === true || value === false) return value;
+  if (value === "true") return true;
+  if (value === "false") return false;
+  throw new Error(`invalid boolean field: ${name}`);
 }
 
 app.get("/healthz", async (_req, res) => {
@@ -51,10 +54,18 @@ app.get("/healthz", async (_req, res) => {
 app.post("/provider/kyc-result", async (req, res) => {
   if (!verifyAuth(req)) return res.status(401).json({ ok: false, error: "unauthorized" });
   const account = okAddress(req.body?.account || "");
-  const kycApproved = Boolean(req.body?.kycApproved);
-  const blacklisted = Boolean(req.body?.blacklisted);
-  const sanctioned = Boolean(req.body?.sanctioned);
-  const riskBps = Number(req.body?.riskBps ?? 0);
+  let kycApproved;
+  let blacklisted;
+  let sanctioned;
+  let riskBps;
+  try {
+    kycApproved = parseBool(req.body?.kycApproved, "kycApproved");
+    blacklisted = parseBool(req.body?.blacklisted, "blacklisted");
+    sanctioned = parseBool(req.body?.sanctioned, "sanctioned");
+    riskBps = Number(req.body?.riskBps ?? 0);
+  } catch (e) {
+    return res.status(400).json({ ok: false, error: String(e) });
+  }
 
   if (!account) return res.status(400).json({ ok: false, error: "invalid account" });
   if (!Number.isInteger(riskBps) || riskBps < 0 || riskBps > 10000) {
@@ -62,18 +73,12 @@ app.post("/provider/kyc-result", async (req, res) => {
   }
 
   try {
-    const tx1 = await registry.setKyc(account, kycApproved);
-    await tx1.wait();
-    const tx2 = await registry.setBlacklist(account, blacklisted);
-    await tx2.wait();
-    const tx3 = await registry.setSanction(account, sanctioned);
-    await tx3.wait();
-    const tx4 = await registry.setAmlRiskScore(account, riskBps);
-    await tx4.wait();
+    const tx = await registry.setComplianceData(account, kycApproved, blacklisted, sanctioned, riskBps);
+    await tx.wait();
 
     res.json({
       ok: true,
-      txHashes: [tx1.hash, tx2.hash, tx3.hash, tx4.hash]
+      txHash: tx.hash
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e) });
