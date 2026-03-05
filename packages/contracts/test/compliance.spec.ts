@@ -145,4 +145,22 @@ describe("Compliance registry and factory enforcement", function () {
       seller.address, await token.getAddress(), ethers.parseUnits("1", 18), now + 10800, "ipfs://evidence"
     )).to.be.revertedWith("compliance-blocked");
   });
+
+  it("should update compliance data atomically with batch setter", async function () {
+    const [owner, account] = await ethers.getSigners();
+
+    const Compliance = await ethers.getContractFactory("ComplianceRegistry");
+    const compliance = await Compliance.deploy(owner.address);
+    await compliance.waitForDeployment();
+
+    await compliance.setComplianceData(account.address, true, false, false, 2500);
+    expect(await compliance.isKycApproved(account.address)).to.equal(true);
+    expect(await compliance.isBlacklisted(account.address)).to.equal(false);
+    expect(await compliance.isSanctioned(account.address)).to.equal(false);
+    expect(await compliance.amlRiskScoreBps(account.address)).to.equal(2500);
+    expect(await compliance.isAllowed(account.address)).to.equal(true);
+
+    await compliance.setAmlConfig(true, 2000);
+    expect(await compliance.isAllowed(account.address)).to.equal(false);
+  });
 });
