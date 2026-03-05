@@ -1,4 +1,6 @@
 import crypto from "crypto";
+import fs from "fs";
+import path from "path";
 import express from "express";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -15,6 +17,8 @@ const NONCE_TTL_SECONDS = Number(process.env.NONCE_TTL_SECONDS || 900);
 const IDEMPOTENCY_TTL_SECONDS = Number(process.env.IDEMPOTENCY_TTL_SECONDS || 900);
 const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
 const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 60);
+const ALERT_WEBHOOK_URL = process.env.ALERT_WEBHOOK_URL || "";
+const AUDIT_LOG_PATH = process.env.AUDIT_LOG_PATH || path.join(process.cwd(), "logs", "compliance-gateway.log");
 
 if (!RPC_URL || !PRIVATE_KEY || !COMPLIANCE_REGISTRY || !PROVIDER_SHARED_SECRET) {
   console.error("[compliance-gateway] RPC_URL / PRIVATE_KEY / COMPLIANCE_REGISTRY / PROVIDER_SHARED_SECRET are required");
@@ -47,6 +51,8 @@ app.use(express.json({
 const usedNonces = new Map();
 const idempotencyStore = new Map();
 
+fs.mkdirSync(path.dirname(AUDIT_LOG_PATH), { recursive: true });
+
 setInterval(() => {
   const now = Math.floor(Date.now() / 1000);
   for (const [nonce, exp] of usedNonces.entries()) {
@@ -66,11 +72,31 @@ const payloadSchema = z.object({
 });
 
 function log(event, extra = {}) {
-  console.log(JSON.stringify({
+  const line = JSON.stringify({
     ts: new Date().toISOString(),
     event,
     ...extra
-  }));
+  });
+  console.log(line);
+  fs.appendFileSync(AUDIT_LOG_PATH, line + "\n");
+}
+
+async function sendAlert(type, payload) {
+  if (!ALERT_WEBHOOK_URL) return;
+  try {
+    await fetch(ALERT_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        service: "compliance-gateway",
+        type,
+        ...payload,
+        ts: new Date().toISOString()
+      })
+    });
+  } catch (e) {
+    log("alert_failed", { error: String(e), type });
+  }
 }
 
 function parseBool(value) {
@@ -170,6 +196,7 @@ app.post("/provider/kyc-result", async (req, res) => {
   const verify = verifySignature(req);
   if (!verify.ok) {
     log("auth_rejected", { reason: verify.error, ip: req.ip });
+    await sendAlert("auth_rejected", { reason: verify.error, ip: req.ip });
     return res.status(401).json({ ok: false, error: verify.error });
   }
 
@@ -204,6 +231,7 @@ app.post("/provider/kyc-result", async (req, res) => {
     return res.json({ ok: true, ...response });
   } catch (e) {
     log("kyc_result_failed", { error: String(e) });
+    await sendAlert("kyc_result_failed", { error: String(e) });
     return res.status(500).json({ ok: false, error: String(e) });
   }
 });
