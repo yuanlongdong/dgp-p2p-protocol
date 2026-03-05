@@ -11,6 +11,9 @@
 "subgraph:codegen": "pnpm --filter @dgp/subgraph codegen",
 "subgraph:build": "pnpm --filter @dgp/subgraph build",
 "subgraph:sync:arb": "pnpm --filter @dgp/subgraph sync:arb",
-"subgraph:sync:op": "pnpm --filter @dgp/subgraph sync:op"
+"subgraph:sync:op": "pnpm --filter @dgp/subgraph sync:op",
+"demo:prepare": "node scripts/ops/prepare-demo-env.mjs",
+"demo:prepare:arb": "node scripts/ops/prepare-demo-env.mjs arbSepolia",
+"demo:prepare:op": "node scripts/ops/prepare-demo-env.mjs opSepolia"
 }
 }
