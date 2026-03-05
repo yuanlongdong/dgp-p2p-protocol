@@ -44,6 +44,31 @@ export async function deployAll() {
   );
   await oracleTwapGuard.waitForDeployment();
 
+  const Token = await ethers.getContractFactory("DGPToken");
+  const dgpToken = await Token.deploy(deployer.address, ethers.parseUnits("1000000000", 18));
+  await dgpToken.waitForDeployment();
+
+  const Params = await ethers.getContractFactory("ProtocolParamsTimelock");
+  const paramsTimelock = await Params.deploy(
+    deployer.address,
+    7 * 24 * 3600,
+    150,
+    15000
+  );
+  await paramsTimelock.waitForDeployment();
+
+  const Governor = await ethers.getContractFactory("DGPGovernorLite");
+  const governor = await Governor.deploy(
+    deployer.address,
+    await dgpToken.getAddress(),
+    await paramsTimelock.getAddress(),
+    20,
+    45818,
+    ethers.parseUnits("100000", 18),
+    2000
+  );
+  await governor.waitForDeployment();
+
   const output = {
     network: network.name,
     chainId: Number(network.config.chainId || 0),
@@ -56,6 +81,9 @@ export async function deployAll() {
     guarantorVault: await vault.getAddress(),
     oracleRouter: await oracleRouter.getAddress(),
     oracleTwapGuard: await oracleTwapGuard.getAddress(),
+    dgpToken: await dgpToken.getAddress(),
+    protocolParamsTimelock: await paramsTimelock.getAddress(),
+    dgpGovernor: await governor.getAddress(),
     feeRouter: "",
     timestamp: new Date().toISOString()
   };
@@ -64,6 +92,7 @@ export async function deployAll() {
   await factory.setCollateralConfig(await vault.getAddress(), 15000);
   await factory.setComplianceConfig(await compliance.getAddress(), false);
   await factory.setRiskConfig(await oracleTwapGuard.getAddress(), false);
+  await paramsTimelock.transferOwnership(await governor.getAddress());
 
   const FeeRouter = await ethers.getContractFactory("FeeRouter");
   const feeRouter = await FeeRouter.deploy(deployer.address, deployer.address, 50);
