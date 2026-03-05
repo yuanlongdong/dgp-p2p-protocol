@@ -1,1 +1,29 @@
-type Escrow @entity { id: ID! }
+type Escrow @entity(immutable: true) {
+  id: ID!
+  escrowId: BigInt!
+  buyer: Bytes!
+  seller: Bytes!
+  escrow: Bytes!
+  createdAt: BigInt!
+}
+
+type Dispute @entity(immutable: false) {
+  id: ID!
+  disputeId: BigInt!
+  escrow: Bytes!
+  resolved: Boolean!
+  sellerBps: Int!
+  votes: Int!
+  openedAt: BigInt!
+  txHash: Bytes!
+}
+
+type Vote @entity(immutable: true) {
+  id: ID!
+  dispute: Dispute!
+  mediator: Bytes!
+  sellerBps: Int!
+  votes: Int!
+  txHash: Bytes!
+  timestamp: BigInt!
+}

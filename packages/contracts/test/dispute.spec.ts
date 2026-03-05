@@ -86,4 +86,33 @@ const buyerBal = await token.balanceOf(buyer.address);
 expect(sellerBal).to.equal(0);
 expect(buyerBal).to.equal(0);
 });
+
+it("should reject opening dispute for non-disputed escrow", async function () {
+const [owner, buyer, seller, m1, m2] = await ethers.getSigners();
+const Mock = await ethers.getContractFactory("MockERC20");
+const token = await Mock.deploy("MockUSDT", "mUSDT");
+await token.waitForDeployment();
+
+const Registry = await ethers.getContractFactory("MediatorRegistry");
+const registry = await Registry.deploy(owner.address);
+await registry.waitForDeployment();
+await registry.setMediator(m1.address, true);
+await registry.setMediator(m2.address, true);
+
+const Dispute = await ethers.getContractFactory("DisputeModule");
+const dispute = await Dispute.deploy(await registry.getAddress(), 2, 2, 3600);
+await dispute.waitForDeployment();
+
+const Factory = await ethers.getContractFactory("EscrowFactory");
+const factory = await Factory.deploy(await dispute.getAddress());
+await factory.waitForDeployment();
+
+const now = (await ethers.provider.getBlock("latest"))!.timestamp;
+await (await factory.connect(buyer).createEscrow(
+seller.address, await token.getAddress(), ethers.parseUnits("10", 18), now + 3600, "ipfs://evidence"
+)).wait();
+const escrowAddr = await factory.escrows(1n);
+
+await expect(dispute.openDispute(escrowAddr)).to.be.revertedWith("escrow-not-disputed");
+});
 });

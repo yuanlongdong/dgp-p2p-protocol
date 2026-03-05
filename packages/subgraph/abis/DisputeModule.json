@@ -1,0 +1,31 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "disputeId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "escrow", "type": "address" }
+    ],
+    "name": "DisputeOpened",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "disputeId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "mediator", "type": "address" },
+      { "indexed": false, "internalType": "uint16", "name": "sellerBps", "type": "uint16" },
+      { "indexed": false, "internalType": "uint16", "name": "votes", "type": "uint16" }
+    ],
+    "name": "Voted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "disputeId", "type": "uint256" },
+      { "indexed": false, "internalType": "uint16", "name": "sellerBps", "type": "uint16" }
+    ],
+    "name": "Resolved",
+    "type": "event"
+  }
+]

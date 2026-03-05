@@ -2,5 +2,6 @@
 - EscrowFactory / EscrowCore
 - GuarantorVault
 - FeeRouter
-- DisputeModule（后续）
+- DisputeModule（threshold + quorum + voteWindow）
+- MediatorRegistry（admin + emergency pause）
 - Web + Telegram Mini App + Subgraph

@@ -4,10 +4,13 @@
 "private": true,
 "scripts": {
 "build": "hardhat compile",
-"test": "hardhat test"
+"test": "hardhat test",
+"deploy:arb-sepolia": "hardhat run scripts/deploy.arb-sepolia.ts --network arbSepolia",
+"deploy:op-sepolia": "hardhat run scripts/deploy.op-sepolia.ts --network opSepolia"
 },
 "devDependencies": {
 "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+"dotenv": "^16.6.1",
 "hardhat": "^2.22.0",
 "typescript": "^5.5.0"
 },

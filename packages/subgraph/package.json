@@ -1,0 +1,15 @@
+{
+  "name": "@dgp/subgraph",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "graph codegen subgraph.yaml && graph build subgraph.yaml",
+    "codegen": "graph codegen subgraph.yaml",
+    "deploy:studio": "graph deploy --studio dgp-p2p subgraph.yaml"
+  },
+  "devDependencies": {
+    "@graphprotocol/graph-cli": "^0.98.1",
+    "@graphprotocol/graph-ts": "^0.38.2",
+    "typescript": "^5.5.4"
+  }
+}

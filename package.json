@@ -7,6 +7,8 @@
 "build": "pnpm -r build",
 "dev:web": "pnpm --filter @dgp/web dev",
 "dev:miniapp": "pnpm --filter @dgp/miniapp dev",
-"test:contracts": "pnpm --filter @dgp/contracts test"
+"test:contracts": "pnpm --filter @dgp/contracts test",
+"subgraph:codegen": "pnpm --filter @dgp/subgraph codegen",
+"subgraph:build": "pnpm --filter @dgp/subgraph build"
 }
 }

@@ -1,0 +1,44 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Contracts tests
+        run: pnpm test:contracts
+      - name: Build workspaces
+        run: pnpm build
+
+  security-baseline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enable corepack
+        run: corepack enable
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: npm audit (high+critical)
+        run: npm audit --audit-level=high || true
+      - name: Secret scan baseline
+        run: |
+          if grep -RInE "ghp_[A-Za-z0-9]{20,}" . --exclude-dir=node_modules; then
+            echo "Potential GitHub token leaked"
+            exit 1
+          fi

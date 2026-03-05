@@ -50,6 +50,7 @@ _;
 
 function openDispute(address escrow) external returns (uint256 disputeId) {
 require(escrow != address(0), "escrow=0");
+require(IEscrowRuling(escrow).status() == 4, "escrow-not-disputed");
 disputeId = ++nextDisputeId;
 disputes[disputeId].escrow = escrow;
 disputes[disputeId].openedAt = uint64(block.timestamp);
@@ -75,6 +76,18 @@ d.resolved = true;
 IEscrowRuling(d.escrow).applyRuling(d.sellerBps);
 emit Resolved(disputeId, d.sellerBps);
 }
+}
+
+function resolveAfterWindow(uint256 disputeId) external {
+Dispute storage d = disputes[disputeId];
+require(d.escrow != address(0), "no-dispute");
+require(!d.resolved, "resolved");
+require(block.timestamp > d.openedAt + voteWindow, "vote-active");
+require(d.yesVotes >= threshold && d.yesVotes >= quorum, "not-enough-votes");
+
+d.resolved = true;
+IEscrowRuling(d.escrow).applyRuling(d.sellerBps);
+emit Resolved(disputeId, d.sellerBps);
 }
 
 function getDispute(uint256 disputeId) external view returns (address escrow, bool resolved, uint16 sellerBps, uint16 votes) {

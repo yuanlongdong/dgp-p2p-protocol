@@ -8,7 +8,9 @@
   },
   "dependencies": {
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "viem": "^2.37.9",
+    "wagmi": "^2.12.16"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
