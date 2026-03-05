@@ -22,6 +22,14 @@ yaml = yaml.replace(
   /(name: DisputeModule[\s\S]*?address:\s*")[0xA-Fa-f0-9]{40}(")/,
   `$1${deployment.disputeModule}$2`
 );
+yaml = yaml.replace(
+  /(name: DGPGovernorLite[\s\S]*?address:\s*")[0xA-Fa-f0-9]{40}(")/,
+  `$1${deployment.dgpGovernor}$2`
+);
+yaml = yaml.replace(
+  /(name: ComplianceRegistry[\s\S]*?address:\s*")[0xA-Fa-f0-9]{40}(")/,
+  `$1${deployment.complianceRegistry}$2`
+);
 
 const net = deployment.network === 'opSepolia' ? 'optimism-sepolia' : 'arbitrum-sepolia';
 yaml = yaml.replace(/network:\s*arbitrum-sepolia/g, `network: ${net}`);
