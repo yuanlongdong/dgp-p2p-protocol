@@ -2,6 +2,19 @@ import { ethers, network } from "hardhat";
 import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 
+function parseFeedSpecs(raw: string | undefined) {
+  if (!raw) return [] as Array<{ token: string; feed: string; maxAge: number }>;
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const [token, feed, maxAge] = item.split(":");
+      return { token, feed, maxAge: Number(maxAge || "0") };
+    })
+    .filter((x) => x.token && x.feed);
+}
+
 export async function deployAll() {
   const [deployer] = await ethers.getSigners();
   console.log("Network:", network.name);
@@ -15,10 +28,20 @@ export async function deployAll() {
   const dispute = await Dispute.deploy(await registry.getAddress(), 2, 2, 86400);
   await dispute.waitForDeployment();
 
-  const KlerosAdapter = await ethers.getContractFactory("KlerosAdapterMock");
-  const klerosAdapter = await KlerosAdapter.deploy(await dispute.getAddress());
-  await klerosAdapter.waitForDeployment();
-  await dispute.setKlerosAdapter(await klerosAdapter.getAddress());
+  let klerosAdapterAddress = "";
+  const klerosArbitrator = process.env.KLEROS_ARBITRATOR || "";
+  if (klerosArbitrator) {
+    const KlerosAdapter = await ethers.getContractFactory("KlerosAdapter");
+    const klerosAdapter = await KlerosAdapter.deploy(deployer.address, await dispute.getAddress(), klerosArbitrator);
+    await klerosAdapter.waitForDeployment();
+    klerosAdapterAddress = await klerosAdapter.getAddress();
+  } else {
+    const KlerosAdapter = await ethers.getContractFactory("KlerosAdapterMock");
+    const klerosAdapter = await KlerosAdapter.deploy(await dispute.getAddress());
+    await klerosAdapter.waitForDeployment();
+    klerosAdapterAddress = await klerosAdapter.getAddress();
+  }
+  await dispute.setKlerosAdapter(klerosAdapterAddress);
 
   const Factory = await ethers.getContractFactory("EscrowFactory");
   const factory = await Factory.deploy(await dispute.getAddress());
@@ -75,7 +98,8 @@ export async function deployAll() {
     deployer: deployer.address,
     mediatorRegistry: await registry.getAddress(),
     disputeModule: await dispute.getAddress(),
-    klerosAdapter: await klerosAdapter.getAddress(),
+    klerosAdapter: klerosAdapterAddress,
+    klerosArbitrator: klerosArbitrator || "",
     complianceRegistry: await compliance.getAddress(),
     escrowFactory: await factory.getAddress(),
     guarantorVault: await vault.getAddress(),
@@ -94,6 +118,12 @@ export async function deployAll() {
   await factory.setRiskConfig(await oracleTwapGuard.getAddress(), false);
   await paramsTimelock.transferOwnership(await governor.getAddress());
 
+  const feedSpecs = parseFeedSpecs(process.env.CHAINLINK_FEEDS);
+  for (const spec of feedSpecs) {
+    await oracleRouter.setFeedConfig(spec.token, spec.feed, spec.maxAge);
+    console.log("Configured feed:", spec.token, spec.feed, "maxAge=", spec.maxAge);
+  }
+
   const FeeRouter = await ethers.getContractFactory("FeeRouter");
   const feeRouter = await FeeRouter.deploy(deployer.address, deployer.address, 50);
   await feeRouter.waitForDeployment();
@@ -109,4 +139,7 @@ export async function deployAll() {
   console.log("VITE_DISPUTE_MODULE=", output.disputeModule);
   console.log("VITE_DGP_GOVERNOR=", output.dgpGovernor);
   console.log("VITE_COMPLIANCE_REGISTRY=", output.complianceRegistry);
+  if (output.klerosArbitrator) {
+    console.log("KLEROS_ARBITRATOR=", output.klerosArbitrator);
+  }
 }
