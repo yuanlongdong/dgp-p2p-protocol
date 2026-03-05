@@ -47,7 +47,7 @@ node scripts/ops/e2e-demo.mjs arbSepolia --deploy "https://api.studio.thegraph.c
 export RPC_URL=<rpc>
 export PRIVATE_KEY=<admin key>
 export COMPLIANCE_REGISTRY=<registry>
-export PROVIDER_SHARED_SECRET=<optional>
+export PROVIDER_SHARED_SECRET=<required>
 pnpm dev:compliance-gateway
 ```
 
