@@ -42,6 +42,21 @@ pnpm demo:e2e:arb -- "https://api.studio.thegraph.com/query/<id>/<name>/latest"
 node scripts/ops/e2e-demo.mjs arbSepolia --deploy "https://api.studio.thegraph.com/query/<id>/<name>/latest"
 ```
 
+## 外部 KYC/AML 回调网关
+```bash
+export RPC_URL=<rpc>
+export PRIVATE_KEY=<admin key>
+export COMPLIANCE_REGISTRY=<registry>
+export PROVIDER_SHARED_SECRET=<optional>
+pnpm dev:compliance-gateway
+```
+
+## 运行健康检查
+```bash
+pnpm ops:healthcheck:arb -- "<rpc_url>" "<subgraph_url>"
+pnpm ops:healthcheck:op -- "<rpc_url>" "<subgraph_url>"
+```
+
 ## 上线前检查（建议）
 1. `packages/contracts/deployments/<network>.json` 存在且包含：
    - `escrowFactory`
