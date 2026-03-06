@@ -1,0 +1,11 @@
+name: perf-gate
+on:
+  push:
+    branches: [main]
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node scripts/perf/contracts-workload.mjs
+      - run: node scripts/perf/assert-baseline.mjs
