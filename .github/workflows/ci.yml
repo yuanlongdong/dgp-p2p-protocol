@@ -40,7 +40,11 @@ jobs:
       - name: Install dependencies
         run: |
           if [ -f pnpm-lock.yaml ]; then
+          if [ -f pnpm-lock.yaml ]; then
             pnpm install --frozen-lockfile
+          else
+            pnpm install --no-frozen-lockfile
+          fi
           else
             pnpm install --no-frozen-lockfile
           fi
