@@ -46,3 +46,6 @@ jobs:
 
       - name: Takeover check
         run: pnpm ops:takeover:check
+
+      - name: Healthcheck strict (arb)
+        run: pnpm ops:healthcheck:arb:strict
