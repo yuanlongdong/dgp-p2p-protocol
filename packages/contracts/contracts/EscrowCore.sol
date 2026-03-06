@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract EscrowCore is ReentrancyGuard {
 using SafeERC20 for IERC20;
@@ -24,6 +24,7 @@ event Released(address indexed to, uint256 amount);
 event Refunded(address indexed to, uint256 amount);
 event Disputed(string evidenceCID);
 event Ruled(uint16 sellerBps, uint256 sellerAmount, uint256 buyerAmount);
+event StatusChanged(Status from, Status to, address indexed actor);
 
 modifier onlyBuyer() { require(msg.sender == buyer, "only-buyer"); _; }
 modifier onlyDisputeModule() { require(msg.sender == disputeModule, "only-dispute-module"); _; }
@@ -37,6 +38,14 @@ uint64 _timeoutAt,
 string memory _evidenceCID,
 address _disputeModule
 ) {
+require(_buyer != address(0), "buyer=0");
+require(_seller != address(0), "seller=0");
+require(_token != address(0), "token=0");
+require(_disputeModule != address(0), "dispute=0");
+require(_buyer != _seller, "same-party");
+require(_amount > 0, "amount=0");
+require(_timeoutAt > block.timestamp, "bad-timeout");
+
 buyer = _buyer;
 seller = _seller;
 token = IERC20(_token);
@@ -49,14 +58,14 @@ status = Status.Created;
 
 function fund() external nonReentrant onlyBuyer {
 require(status == Status.Created, "bad-status");
-status = Status.Funded;
+_setStatus(Status.Funded);
 token.safeTransferFrom(msg.sender, address(this), amount);
 emit Funded(msg.sender, amount);
 }
 
 function releaseToSeller() external nonReentrant onlyBuyer {
 require(status == Status.Funded, "bad-status");
-status = Status.Released;
+_setStatus(Status.Released);
 token.safeTransfer(seller, amount);
 emit Released(seller, amount);
 }
@@ -64,7 +73,7 @@ emit Released(seller, amount);
 function timeoutRefundToBuyer() external nonReentrant {
 require(status == Status.Funded, "bad-status");
 require(block.timestamp >= timeoutAt, "not-timeout");
-status = Status.Refunded;
+_setStatus(Status.Refunded);
 token.safeTransfer(buyer, amount);
 emit Refunded(buyer, amount);
 }
@@ -72,7 +81,8 @@ emit Refunded(buyer, amount);
 function markDispute(string calldata cid) external {
 require(msg.sender == buyer || msg.sender == seller, "not-party");
 require(status == Status.Funded, "bad-status");
-status = Status.Disputed;
+require(bytes(cid).length > 0, "cid-empty");
+_setStatus(Status.Disputed);
 evidenceCID = cid;
 emit Disputed(cid);
 }
@@ -82,7 +92,7 @@ function applyRuling(uint16 sellerBps) external nonReentrant onlyDisputeModule {
 require(status == Status.Disputed, "not-disputed");
 require(sellerBps <= 10000, "bad-bps");
 
-status = Status.Ruled;
+_setStatus(Status.Ruled);
 uint256 sellerAmount = (amount * sellerBps) / 10000;
 uint256 buyerAmount = amount - sellerAmount;
 
@@ -90,5 +100,11 @@ if (sellerAmount > 0) token.safeTransfer(seller, sellerAmount);
 if (buyerAmount > 0) token.safeTransfer(buyer, buyerAmount);
 
 emit Ruled(sellerBps, sellerAmount, buyerAmount);
+}
+
+function _setStatus(Status next) internal {
+Status prev = status;
+status = next;
+emit StatusChanged(prev, next, msg.sender);
 }
 }
