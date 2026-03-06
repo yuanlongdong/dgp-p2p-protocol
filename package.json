@@ -21,6 +21,8 @@
     "demo:e2e:op": "node scripts/ops/e2e-demo.mjs opSepolia",
     "ops:healthcheck:arb": "node scripts/ops/healthcheck.mjs arbSepolia",
     "ops:healthcheck:op": "node scripts/ops/healthcheck.mjs opSepolia",
-    "ops:takeover:check": "pnpm build && pnpm test:contracts"
+    "ops:takeover:check": "pnpm build && pnpm test:contracts",
+    "ops:healthcheck:arb:strict": "HEALTHCHECK_STRICT=1 node scripts/ops/healthcheck.mjs arbSepolia",
+    "ops:healthcheck:op:strict": "HEALTHCHECK_STRICT=1 node scripts/ops/healthcheck.mjs opSepolia"
   }
 }
