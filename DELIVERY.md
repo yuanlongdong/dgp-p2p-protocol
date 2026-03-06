@@ -18,3 +18,9 @@
 - The Graph 完整 ABI/映射生成
 - 安全加固（权限、暂停、升级策略、审计修复）
 - CI/CD、测试覆盖率、测试网稳定部署流程
+
+## 性能验证资产（新增）
+- 压测脚本：contracts-workload.mjs
+- 压测运行命令：pnpm perf:contracts
+- 压测文档：load-testing.md
+- 压测结果产物：latest.json、latest.md
