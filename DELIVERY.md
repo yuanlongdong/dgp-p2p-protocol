@@ -1,26 +1,23 @@
 # DGP-P2P Delivery Summary
 
-## 当前已完成
-- Monorepo 结构（contracts/web/miniapp/subgraph/docs）
-- Escrow 基础流程：create/fund/release/timeout/dispute
-- 多签调解基础模块：MediatorRegistry + DisputeModule + applyRuling
-- Web 交互（阶段版）：读取 nextEscrowId、createEscrow、openDispute、getDispute
+## Landed Commits
+- 3792f2c docs(security): add production commit signoff and secrets matrix
+- 0f5fb96 feat(perf): add reproducible workload testing and baseline reports
+- fe9d094 feat(econ): add reproducible APY simulation for 50m/300m scenarios
 
-## 当前可演示
-1. 配置合约地址与链环境
-2. Web 发起 createEscrow
-3. Web 发起 openDispute
-4. Web 查询 dispute 状态
+## Delivered Assets
+- Security runbook and secrets matrix
+- Performance workload script + scenarios + docs
+- Economic APY simulation engine + scenarios + model doc
 
-## 未完成（下一阶段）
-- Kleros 适配器真实接入
-- Telegram Mini App 真正链交互
-- The Graph 完整 ABI/映射生成
-- 安全加固（权限、暂停、升级策略、审计修复）
-- CI/CD、测试覆盖率、测试网稳定部署流程
+## Acceptance Commands
+1. pnpm perf:contracts
+2. node scripts/econ/apy-sim.mjs
+3. Check docs/perf/results/latest.md
+4. Check docs/econ/results/latest.md
 
-## 性能验证资产（新增）
-- 压测脚本：contracts-workload.mjs
-- 压测运行命令：pnpm perf:contracts
-- 压测文档：load-testing.md
-- 压测结果产物：latest.json、latest.md
+## Remaining for Full Production Closure
+1. Third-party audit execution and signed report package
+2. Public bug bounty launch and payout operations
+3. Mainnet vendor credentials and final parameter freeze
+4. Final CI-based load/perf evidence under supported runtime
