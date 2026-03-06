@@ -1,0 +1,4 @@
+[
+  {"name":"fund-50m-base","principal":50000000,"utilization":0.58,"avgDurationDays":30,"protocolFeeBps":80,"defaultRateBps":140,"slashRecoveryBps":7000,"annualGrowthRate":0.18},
+  {"name":"fund-300m-scale","principal":300000000,"utilization":0.66,"avgDurationDays":28,"protocolFeeBps":70,"defaultRateBps":170,"slashRecoveryBps":7600,"annualGrowthRate":0.24}
+]
