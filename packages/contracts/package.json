@@ -4,12 +4,14 @@
 "private": true,
 "scripts": {
 "build": "hardhat compile",
-"test": "hardhat test"
+"test": "hardhat test",
+"deploy:arb-sepolia": "hardhat run scripts/deploy-and-save.ts --network arbitrumSepolia"
 },
 "devDependencies": {
-"@nomicfoundation/hardhat-toolbox": "^5.0.0",
 "hardhat": "^2.22.0",
-"typescript": "^5.5.0"
+"typescript": "^5.5.0",
+"ts-node": "^10.9.2",
+"dotenv": "^16.4.5"
 },
 "dependencies": {
 "@openzeppelin/contracts": "^5.0.2"

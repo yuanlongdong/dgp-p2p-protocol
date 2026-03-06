@@ -1,0 +1,1 @@
+{"name":"@dgp/web","private":true,"version":"0.1.0","scripts":{"dev":"vite","build":"vite build"},"dependencies":{"@tanstack/react-query":"^5.59.0","react":"^18.3.1","react-dom":"^18.3.1","viem":"^2.15.0","wagmi":"^2.10.0"},"devDependencies":{"@rollup/rollup-android-arm64":"^4.59.0","@vitejs/plugin-react":"^4.7.0","typescript":"^5.9.3","vite":"^5.4.21"}}
