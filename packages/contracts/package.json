@@ -1,1 +1,20 @@
-{"name":"@dgp/contracts","version":"0.1.0","private":true,"scripts":{"build":"hardhat compile","test":"hardhat test","deploy:arb-sepolia":"hardhat run scripts/deploy.arb-sepolia.ts --network arbSepolia","deploy:op-sepolia":"hardhat run scripts/deploy.op-sepolia.ts --network opSepolia"},"devDependencies":{"@nomicfoundation/hardhat-chai-matchers":"^2.1.2","@nomicfoundation/hardhat-ethers":"^3.1.3","@types/node":"20.14.15","dotenv":"^16.6.1","hardhat":"2.22.0","ts-node":"10.9.2","typescript":"^5.5.0"},"dependencies":{"@openzeppelin/contracts":"^5.0.2"}}
+{
+"name": "@dgp/contracts",
+"version": "0.1.0",
+"private": true,
+"scripts": {
+"build": "hardhat compile",
+"test": "hardhat test",
+"deploy:arb-sepolia": "hardhat run scripts/deploy.arb-sepolia.ts --network arbSepolia",
+"deploy:op-sepolia": "hardhat run scripts/deploy.op-sepolia.ts --network opSepolia"
+},
+"devDependencies": {
+"@nomicfoundation/hardhat-toolbox": "^5.0.0",
+"dotenv": "^16.6.1",
+"hardhat": "^2.22.0",
+"typescript": "^5.5.0"
+},
+"dependencies": {
+"@openzeppelin/contracts": "^5.0.2"
+}
+}
