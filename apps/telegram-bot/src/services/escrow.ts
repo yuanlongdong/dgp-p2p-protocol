@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 
 export type DealStatus =
   | "CREATED"
@@ -71,8 +72,13 @@ export class EscrowService {
     amount: string;
     token: string;
   }): Deal {
+    let dealId = this.generateDealId();
+    while (this.deals.has(dealId)) {
+      dealId = this.generateDealId();
+    }
+
     const deal: Deal = {
-      id: this.nextId++,
+      id: dealId,
       chatId: input.chatId,
       buyerId: input.buyerId,
       buyerUsername: input.buyerUsername,
@@ -83,8 +89,14 @@ export class EscrowService {
       createdAt: Date.now()
     };
     this.deals.set(deal.id, deal);
+    this.nextId += 1;
     this.persist();
     return deal;
+  }
+
+  private generateDealId(): number {
+    const raw = crypto.randomBytes(4).readUInt32BE(0);
+    return 100000 + (raw % 900000);
   }
 
   getDeal(id: number): Deal | undefined {
