@@ -3,6 +3,7 @@ import { parseAbiItem } from "viem";
 import { createRpcClient } from "./rpc";
 import { SupportedNetwork } from "../config/networks";
 import { EscrowService } from "./escrow";
+import { auditLog } from "./audit-log";
 
 type EventRelayConfig = {
   network: SupportedNetwork;
@@ -47,6 +48,7 @@ export function startEventRelay(bot: Telegraf, config: EventRelayConfig) {
           const amount = String(log.args?.amount ?? "");
           const deal = relatedDealId ? config.escrow.getDeal(relatedDealId) : undefined;
           if (deal) config.escrow.setStatus(deal.id, "FUNDED");
+          auditLog("escrowFunded", { dealId: deal?.id, amount, escrowAddress });
           sendToChat(deal?.chatId ?? relatedChatId ?? defaultChatId, `✅ Escrow funded\nDeal #${deal?.id ?? "?"}\nAmount: ${amount}`);
         }
       }
@@ -61,6 +63,7 @@ export function startEventRelay(bot: Telegraf, config: EventRelayConfig) {
           const amount = String(log.args?.amount ?? "");
           const deal = relatedDealId ? config.escrow.getDeal(relatedDealId) : undefined;
           if (deal) config.escrow.setStatus(deal.id, "RELEASED");
+          auditLog("escrowReleased", { dealId: deal?.id, amount, escrowAddress });
           sendToChat(deal?.chatId ?? relatedChatId ?? defaultChatId, `🔔 Escrow Released\nDeal #${deal?.id ?? "?"}\nSeller paid: ${amount}`);
         }
       }
@@ -95,12 +98,21 @@ export function startEventRelay(bot: Telegraf, config: EventRelayConfig) {
             });
           }
           if (linked) {
+            auditLog("escrowCreated", {
+              dealId: linked.id,
+              escrowId: contractEscrowId,
+              escrowAddress
+            });
             sendToChat(
               linked.chatId,
               `🧾 Escrow Created On-Chain\nTelegram Deal #${linked.id}\nEscrowId: ${contractEscrowId}\nEscrow: ${escrowAddress}`
             );
             watchEscrowAddress(escrowAddress, linked.id, linked.chatId);
           } else {
+            auditLog("escrowCreatedUnbound", {
+              escrowId: contractEscrowId,
+              escrowAddress
+            });
             sendToChat(defaultChatId, `🧾 Escrow Created\nEscrowId: ${contractEscrowId}\nEscrow: ${escrowAddress}`);
             watchEscrowAddress(escrowAddress, undefined, defaultChatId);
           }
@@ -129,6 +141,11 @@ export function startEventRelay(bot: Telegraf, config: EventRelayConfig) {
             config.escrow.bindDisputeId(linkedDeal.id, disputeId);
           }
           const deal = linkedDeal || config.escrow.getByDisputeId(disputeId);
+          auditLog("disputeOpened", {
+            dealId: deal?.id,
+            disputeId,
+            escrowAddress
+          });
           sendToChat(
             deal?.chatId ?? defaultChatId,
             `⚠️ Dispute Opened\nDeal #${deal?.id ?? "?"}\nDisputeId: ${disputeId}`
@@ -147,6 +164,12 @@ export function startEventRelay(bot: Telegraf, config: EventRelayConfig) {
           const votes = Number(log.args?.votes ?? 0);
           const sellerBps = Number(log.args?.sellerBps ?? 0);
           const deal = config.escrow.getByDisputeId(disputeId);
+          auditLog("voteCast", {
+            dealId: deal?.id,
+            disputeId,
+            votes,
+            sellerBps
+          });
           sendToChat(
             deal?.chatId ?? defaultChatId,
             `🗳 VoteCast\nDeal #${deal?.id ?? "?"}\nDisputeId: ${disputeId}\nVotes: ${votes}\nSellerBps(avg): ${sellerBps}`
