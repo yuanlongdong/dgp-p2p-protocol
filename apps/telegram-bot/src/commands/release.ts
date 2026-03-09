@@ -1,5 +1,5 @@
 import { Markup, Telegraf } from "telegraf";
-import { CommandDeps } from "./types";
+import { buildMiniAppUrl, CommandDeps } from "./types";
 
 export function registerRelease(bot: Telegraf, deps: CommandDeps) {
   bot.command("release", async (ctx) => {
@@ -31,7 +31,7 @@ export function registerRelease(bot: Telegraf, deps: CommandDeps) {
       return;
     }
     deps.escrow.setStatus(deal.id, "RELEASE_PENDING");
-    const releaseUrl = `${deps.miniAppBaseUrl}?dealId=${deal.id}&action=release`;
+    const releaseUrl = buildMiniAppUrl(deps, { dealId: deal.id, action: "release" });
     await ctx.editMessageText(
       `Deal #${deal.id}\nPlease sign releaseEscrow() in MiniApp.`,
       Markup.inlineKeyboard([Markup.button.url("Confirm Release On-Chain", releaseUrl)])
