@@ -16,15 +16,16 @@ if (!botToken) {
 }
 
 const miniAppBaseUrl = process.env.MINIAPP_URL || "https://example.com/miniapp";
+const botUsername = process.env.BOT_USERNAME;
 const network = (process.env.DGP_NETWORK || "arbSepolia") as SupportedNetwork;
 const escrowFactory = process.env.ESCROW_FACTORY as `0x${string}` | undefined;
 const disputeModule = process.env.DISPUTE_MODULE as `0x${string}` | undefined;
 
 const bot = new Telegraf(botToken);
-const escrow = new EscrowService();
-const deps = { escrow, miniAppBaseUrl };
+const escrow = new EscrowService(process.env.DEAL_STORE_PATH);
+const deps = { escrow, miniAppBaseUrl, botUsername };
 
-registerHelp(bot);
+registerHelp(bot, { officialFactory: escrowFactory });
 registerDeal(bot, deps);
 registerPay(bot, deps);
 registerRelease(bot, deps);
@@ -36,7 +37,8 @@ startEventRelay(bot, {
   rpcUrl: process.env.RPC_URL,
   announceChatId: process.env.TELEGRAM_ANNOUNCE_CHAT_ID,
   escrowFactory,
-  disputeModule
+  disputeModule,
+  escrow
 });
 
 bot.launch().then(() => {
