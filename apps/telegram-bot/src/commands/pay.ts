@@ -1,5 +1,5 @@
 import { Markup, Telegraf } from "telegraf";
-import { CommandDeps } from "./types";
+import { buildMiniAppUrl, CommandDeps } from "./types";
 
 export function registerPay(bot: Telegraf, deps: CommandDeps) {
   bot.command("pay", async (ctx) => {
@@ -7,7 +7,7 @@ export function registerPay(bot: Telegraf, deps: CommandDeps) {
     const parts = text.trim().split(/\s+/);
     const dealId = Number(parts[1]);
     if (!Number.isInteger(dealId) || dealId <= 0) {
-      await ctx.reply("Usage: /pay <dealId>");
+      await ctx.reply("Usage: /pay <dealId> [escrowId]");
       return;
     }
 
@@ -17,13 +17,15 @@ export function registerPay(bot: Telegraf, deps: CommandDeps) {
       return;
     }
 
-    const openUrl = `${deps.miniAppBaseUrl}?dealId=${deal.id}&action=pay`;
+    const maybeEscrowId = Number(parts[2]);
+    if (Number.isInteger(maybeEscrowId) && maybeEscrowId > 0) {
+      deps.escrow.bindEscrowId(deal.id, maybeEscrowId);
+    }
+
+    const openUrl = buildMiniAppUrl(deps, { dealId: deal.id, action: "pay" });
     await ctx.reply(
-      `Deal #${deal.id}\nAmount: ${deal.amount} ${deal.token}\nAction: fundEscrow()`,
+      `Deal #${deal.id}\nAmount: ${deal.amount} ${deal.token}\nAction: fundEscrow()\n${deal.contractEscrowId ? `Bound EscrowId: ${deal.contractEscrowId}` : "Tip: use /pay <dealId> <escrowId> to bind mapping."}`,
       Markup.inlineKeyboard([Markup.button.url("Pay Escrow", openUrl)])
     );
-
-    deps.escrow.setStatus(deal.id, "FUNDED");
-    await ctx.reply(`✅ Escrow funded\nDeal #${deal.id} funds locked on-chain`);
   });
 }
