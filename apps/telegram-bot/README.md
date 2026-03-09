@@ -38,6 +38,14 @@ Required env:
 - `DEEPLINK_SECRET`
 - `ESCROW_FACTORY`
 - `DISPUTE_MODULE`
+- `AUTH_SERVER_PORT` (for Telegram initData verification API)
+
+## Telegram initData verify API
+Bot process starts a minimal endpoint:
+- `POST /auth/telegram/verify`
+- body: `{ "initData": "<Telegram WebApp initData>" }`
+- success: `200 { ok: true, user }`
+- failure: `403 { ok: false, error }`
 
 ## PM2
 ```bash
