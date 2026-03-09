@@ -1,5 +1,6 @@
 import { Markup, Telegraf } from "telegraf";
 import { buildMiniAppUrl, CommandDeps } from "./types";
+import { auditLog } from "../services/audit-log";
 
 export function registerDispute(bot: Telegraf, deps: CommandDeps) {
   bot.command("dispute", async (ctx) => {
@@ -16,6 +17,11 @@ export function registerDispute(bot: Telegraf, deps: CommandDeps) {
       await ctx.reply("Deal not found.");
       return;
     }
+    const actor = ctx.from?.username;
+    if (!actor || (actor !== deal.buyerUsername && actor !== deal.sellerUsername)) {
+      await ctx.reply("Only buyer or seller can run /dispute.");
+      return;
+    }
 
     deps.escrow.setStatus(deal.id, "DISPUTED");
     const disputeUrl = buildMiniAppUrl(deps, { dealId: deal.id, action: "dispute" });
@@ -29,6 +35,7 @@ export function registerDispute(bot: Telegraf, deps: CommandDeps) {
         ]
       ])
     );
+    auditLog("disputeOpened", { dealId: deal.id, actor });
   });
 
   bot.action(/^vote:(\d+):(buyer|seller)$/, async (ctx) => {
@@ -43,5 +50,6 @@ export function registerDispute(bot: Telegraf, deps: CommandDeps) {
     await ctx.reply(
       `Vote submitted for deal #${deal.id} (${side}).\nNext: call vote(disputeId, sellerBps) in MiniApp.`
     );
+    auditLog("voteIntent", { dealId: deal.id, side, actor: ctx.from?.username || "unknown" });
   });
 }
