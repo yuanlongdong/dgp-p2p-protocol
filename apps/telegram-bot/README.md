@@ -16,7 +16,9 @@
 
 ## Deep link
 Set `BOT_USERNAME` and bot buttons will open:
-`https://t.me/<BOT_USERNAME>/app?startapp=deal_<id>:<action>`
+`https://t.me/<BOT_USERNAME>/app?startapp=deal_<id>:<action>:<sig>`
+
+`sig` is HMAC-SHA256 generated with `DEEPLINK_SECRET`.
 
 ## Mapping
 `telegramDealId -> contractEscrowId` is persisted in local file.
@@ -28,6 +30,14 @@ Set `BOT_USERNAME` and bot buttons will open:
 cp apps/telegram-bot/.env.example apps/telegram-bot/.env
 pnpm --filter @dgp/telegram-bot start
 ```
+
+Required env:
+- `BOT_TOKEN`
+- `BOT_USERNAME`
+- `MINIAPP_URL`
+- `DEEPLINK_SECRET`
+- `ESCROW_FACTORY`
+- `DISPUTE_MODULE`
 
 ## PM2
 ```bash
