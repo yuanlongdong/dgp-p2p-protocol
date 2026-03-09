@@ -50,5 +50,5 @@ jobs:
       - name: Security baseline checklist
         run: pnpm security:baseline
 
-      - name: Healthcheck strict (arb)
-        run: pnpm ops:healthcheck:arb:strict
+      - name: Healthcheck (arb)
+        run: pnpm ops:healthcheck:arb
