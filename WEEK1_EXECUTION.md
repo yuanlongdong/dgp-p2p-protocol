@@ -2,7 +2,7 @@
 - [x] #7 [MiniApp] Telegram WebApp SDK bootstrap
 - [x] #6 [Web] Dispute flow: open / vote / query panel
 - [x] #5 [Web] createEscrow form validation + tx status
-- [ ] #4 [Web] Wallet connect UX + chain guard
+- [x] #4 [Web] Wallet connect UX + chain guard
 - [ ] #3 [Contracts] Deployment scripts for Arbitrum Sepolia / Optimism Sepolia
 - [ ] #2 [Contracts] DisputeModule add timeout + quorum + vote window
 - [ ] #1 [Contracts] EscrowCore lifecycle hardening + guards
