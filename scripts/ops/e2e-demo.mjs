@@ -6,7 +6,7 @@ const health = spawnSync("node", ["scripts/ops/healthcheck.mjs", network], { std
 
 if (health.status !== 0) process.exit(health.status || 1);
 
-console.log([e2e-demo] network=${network});
+console.log(`[e2e-demo] network=${network}`);
 console.log("[e2e-demo] preflight checks passed.");
 console.log("[e2e-demo] next steps:");
 console.log("- run: pnpm demo:prepare");
