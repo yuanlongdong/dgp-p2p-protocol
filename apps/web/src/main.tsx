@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { isAddress } from "viem";
 import {
 WagmiProvider, createConfig, http,
-useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract
+useAccount, useChainId, useConnect, useDisconnect, useReadContract, useSwitchChain, useWaitForTransactionReceipt, useWriteContract
 } from "wagmi";
 import { arbitrumSepolia } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
@@ -67,7 +67,13 @@ outputs: [
 
 function Panel() {
 const { address, isConnected } = useAccount();
+const chainId = useChainId();
+const { connect, isPending: isConnectPending } = useConnect();
+const { disconnect } = useDisconnect();
+const { switchChainAsync, isPending: isSwitchPending } = useSwitchChain();
 const { writeContractAsync, isPending } = useWriteContract();
+const targetChainId = arbitrumSepolia.id;
+const isWrongChain = isConnected && chainId !== targetChainId;
 
 const factory = (import.meta as any).env?.VITE_ESCROW_FACTORY || "";
 const dispute = (import.meta as any).env?.VITE_DISPUTE_MODULE || "";
@@ -117,6 +123,7 @@ return null;
 async function onCreate() {
 if (!factory) return alert("请先配置 VITE_ESCROW_FACTORY");
 if (!isConnected) return alert("请先连接钱包");
+if (isWrongChain) return alert("当前网络错误，请切换到 Arbitrum Sepolia");
 const parsedAmount = parseUint(amount);
 const parsedTimeout = parseUint(timeoutAt);
 if (!isAddress(seller)) return setFormError("seller 地址无效");
@@ -139,6 +146,8 @@ setTimeout(() => nextEscrow.refetch(), 3000);
 
 async function onOpenDispute() {
 if (!dispute) return alert("请先配置 VITE_DISPUTE_MODULE");
+if (!isConnected) return alert("请先连接钱包");
+if (isWrongChain) return alert("当前网络错误，请切换到 Arbitrum Sepolia");
 const hash = await writeContractAsync({
 address: dispute as `0x${string}`,
 abi: disputeAbi,
@@ -151,6 +160,8 @@ setTimeout(() => disputeInfo.refetch(), 3000);
 
 async function onVote() {
 if (!dispute) return alert("请先配置 VITE_DISPUTE_MODULE");
+if (!isConnected) return alert("请先连接钱包");
+if (isWrongChain) return alert("当前网络错误，请切换到 Arbitrum Sepolia");
 const voteBps = Number(sellerBps);
 if (Number.isNaN(voteBps) || voteBps < 0 || voteBps > 10000) {
 return alert("sellerBps 必须在 0~10000");
@@ -181,6 +192,7 @@ const parsedTimeout = parseUint(timeoutAt);
 const createDisabled =
 isPending ||
 !isConnected ||
+isWrongChain ||
 !factory ||
 !isAddress(seller) ||
 !isAddress(token) ||
@@ -194,6 +206,27 @@ return (
 <main style={{ maxWidth: 860, margin: "24px auto", fontFamily: "sans-serif", lineHeight: 1.5 }}>
 <h1>DGP-P2P Web (Phase 9)</h1>
 <p>钱包：{isConnected ? `已连接 ${address}` : "未连接"}</p>
+<p>网络：{isConnected ? `${chainId}${isWrongChain ? " (错误链)" : " (正确)"}` : "-"}</p>
+<div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+{!isConnected ? (
+<button onClick={() => connect({ connector: injected() })} disabled={isConnectPending}>
+{isConnectPending ? "连接中..." : "连接钱包"}
+</button>
+) : (
+<button onClick={() => disconnect()}>断开钱包</button>
+)}
+{isWrongChain && (
+<button
+onClick={async () => {
+await switchChainAsync({ chainId: targetChainId });
+}}
+disabled={isSwitchPending}
+>
+{isSwitchPending ? "切链中..." : "切到 Arbitrum Sepolia"}
+</button>
+)}
+</div>
+{isWrongChain && <p style={{ color: "#c1121f" }}>当前链不正确，已阻止交易操作。</p>}
 <p>Factory: {factory || "未配置"}</p>
 <p>Dispute: {dispute || "未配置"}</p>
 <p>nextEscrowId: {nextEscrow.isLoading ? "读取中..." : String(nextEscrow.data ?? "-")}</p>
@@ -211,13 +244,13 @@ return (
 <hr />
 <h3>Open Dispute</h3>
 <input placeholder="escrow address 0x..." value={escrowAddrForDispute} onChange={(e) => setEscrowAddrForDispute(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<button onClick={onOpenDispute} disabled={isPending}>{isPending ? "发送中..." : "发起争议"}</button>
+<button onClick={onOpenDispute} disabled={isPending || isWrongChain}>{isPending ? "发送中..." : "发起争议"}</button>
 
 <hr />
 <h3>Vote Dispute</h3>
 <input placeholder="disputeId" value={voteDisputeId} onChange={(e) => setVoteDisputeId(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
 <input placeholder="sellerBps (0~10000)" value={sellerBps} onChange={(e) => setSellerBps(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<button onClick={onVote} disabled={isPending}>{isPending ? "发送中..." : "提交投票"}</button>
+<button onClick={onVote} disabled={isPending || isWrongChain}>{isPending ? "发送中..." : "提交投票"}</button>
 
 <hr />
 <h3>Query Dispute</h3>
