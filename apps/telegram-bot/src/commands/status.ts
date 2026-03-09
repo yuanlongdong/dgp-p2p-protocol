@@ -20,8 +20,8 @@ export function registerStatus(bot: Telegraf, deps: CommandDeps) {
           seller: deal.sellerUsername,
           amount: deal.amount,
           token: deal.token,
-          status: deal.status
-        })
+          status: `${deal.status}${deal.contractEscrowId ? ` | escrowId=${deal.contractEscrowId}` : ""}${deal.disputeId ? ` | disputeId=${deal.disputeId}` : ""}`
+        }) + `\nEscrowAddress: ${deal.escrowAddress || "-"}`
       );
       return;
     }
@@ -37,7 +37,7 @@ export function registerStatus(bot: Telegraf, deps: CommandDeps) {
       return;
     }
     const body = deals
-      .map((deal) => `#${deal.id} ${deal.amount} ${deal.token} ${deal.buyerUsername}->${deal.sellerUsername} ${deal.status}`)
+      .map((deal) => `#${deal.id} ${deal.amount} ${deal.token} ${deal.buyerUsername}->${deal.sellerUsername} ${deal.status}${deal.contractEscrowId ? ` escrowId=${deal.contractEscrowId}` : ""}`)
       .join("\n");
     await ctx.reply(body);
   });
