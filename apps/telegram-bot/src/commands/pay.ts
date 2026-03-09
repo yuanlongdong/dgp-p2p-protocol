@@ -1,5 +1,6 @@
 import { Markup, Telegraf } from "telegraf";
 import { buildMiniAppUrl, CommandDeps } from "./types";
+import { auditLog } from "../services/audit-log";
 
 export function registerPay(bot: Telegraf, deps: CommandDeps) {
   bot.command("pay", async (ctx) => {
@@ -16,10 +17,16 @@ export function registerPay(bot: Telegraf, deps: CommandDeps) {
       await ctx.reply("Deal not found.");
       return;
     }
+    const actor = ctx.from?.username;
+    if (!actor || actor !== deal.buyerUsername) {
+      await ctx.reply("Only buyer can run /pay.");
+      return;
+    }
 
     const maybeEscrowId = Number(parts[2]);
     if (Number.isInteger(maybeEscrowId) && maybeEscrowId > 0) {
       deps.escrow.bindEscrowId(deal.id, maybeEscrowId);
+      auditLog("dealMappingBound", { dealId: deal.id, escrowId: maybeEscrowId, actor });
     }
 
     const openUrl = buildMiniAppUrl(deps, { dealId: deal.id, action: "pay" });
@@ -27,5 +34,6 @@ export function registerPay(bot: Telegraf, deps: CommandDeps) {
       `Deal #${deal.id}\nAmount: ${deal.amount} ${deal.token}\nAction: fundEscrow()\n${deal.contractEscrowId ? `Bound EscrowId: ${deal.contractEscrowId}` : "Tip: use /pay <dealId> <escrowId> to bind mapping."}`,
       Markup.inlineKeyboard([Markup.button.url("Pay Escrow", openUrl)])
     );
+    auditLog("payRequested", { dealId: deal.id, actor });
   });
 }
