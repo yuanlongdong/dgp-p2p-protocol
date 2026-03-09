@@ -47,5 +47,8 @@ jobs:
       - name: Takeover check
         run: pnpm ops:takeover:check
 
+      - name: Security baseline checklist
+        run: pnpm security:baseline
+
       - name: Healthcheck strict (arb)
         run: pnpm ops:healthcheck:arb:strict
