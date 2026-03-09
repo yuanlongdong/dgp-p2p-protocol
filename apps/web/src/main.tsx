@@ -3,7 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
 WagmiProvider, createConfig, http,
-useAccount, useReadContract, useWriteContract
+useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract
 } from "wagmi";
 import { arbitrumSepolia } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
@@ -42,6 +42,16 @@ outputs: [{ type: "uint256" }]
 },
 {
 type: "function",
+name: "vote",
+stateMutability: "nonpayable",
+inputs: [
+{ name: "disputeId", type: "uint256" },
+{ name: "sellerBps", type: "uint16" }
+],
+outputs: []
+},
+{
+type: "function",
 name: "getDispute",
 stateMutability: "view",
 inputs: [{ name: "disputeId", type: "uint256" }],
@@ -70,6 +80,13 @@ const [txHash, setTxHash] = useState("");
 
 const [escrowAddrForDispute, setEscrowAddrForDispute] = useState("");
 const [disputeId, setDisputeId] = useState("1");
+const [voteDisputeId, setVoteDisputeId] = useState("1");
+const [sellerBps, setSellerBps] = useState("7000");
+
+const txReceipt = useWaitForTransactionReceipt({
+hash: txHash ? (txHash as `0x${string}`) : undefined,
+query: { enabled: !!txHash }
+});
 
 const nextEscrow = useReadContract({
 address: factory ? (factory as `0x${string}`) : undefined,
@@ -110,6 +127,32 @@ setTxHash(hash);
 setTimeout(() => disputeInfo.refetch(), 3000);
 }
 
+async function onVote() {
+if (!dispute) return alert("请先配置 VITE_DISPUTE_MODULE");
+const voteBps = Number(sellerBps);
+if (Number.isNaN(voteBps) || voteBps < 0 || voteBps > 10000) {
+return alert("sellerBps 必须在 0~10000");
+}
+const hash = await writeContractAsync({
+address: dispute as `0x${string}`,
+abi: disputeAbi,
+functionName: "vote",
+args: [BigInt(voteDisputeId || "1"), voteBps]
+});
+setTxHash(hash);
+setDisputeId(voteDisputeId || "1");
+setTimeout(() => disputeInfo.refetch(), 3000);
+}
+
+const disputeSummary = disputeInfo.data
+? {
+escrow: disputeInfo.data[0],
+resolved: disputeInfo.data[1] ? "已裁决" : "处理中",
+sellerBps: Number(disputeInfo.data[2]),
+votes: Number(disputeInfo.data[3])
+}
+: null;
+
 return (
 <main style={{ maxWidth: 860, margin: "24px auto", fontFamily: "sans-serif", lineHeight: 1.5 }}>
 <h1>DGP-P2P Web (Phase 9)</h1>
@@ -133,14 +176,21 @@ return (
 <button onClick={onOpenDispute} disabled={isPending}>{isPending ? "发送中..." : "发起争议"}</button>
 
 <hr />
+<h3>Vote Dispute</h3>
+<input placeholder="disputeId" value={voteDisputeId} onChange={(e) => setVoteDisputeId(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<input placeholder="sellerBps (0~10000)" value={sellerBps} onChange={(e) => setSellerBps(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<button onClick={onVote} disabled={isPending}>{isPending ? "发送中..." : "提交投票"}</button>
+
+<hr />
 <h3>Query Dispute</h3>
 <input placeholder="disputeId" value={disputeId} onChange={(e) => setDisputeId(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
 <button onClick={() => disputeInfo.refetch()}>刷新争议状态</button>
 <pre style={{ background: "#f6f6f6", padding: 12, borderRadius: 8, overflow: "auto" }}>
-{JSON.stringify(disputeInfo.data ?? null, null, 2)}
+{JSON.stringify(disputeSummary, null, 2)}
 </pre>
 
 {txHash && <p>Tx: {txHash}</p>}
+{txHash && <p>Tx Status: {txReceipt.isLoading ? "确认中..." : txReceipt.isSuccess ? "已上链" : txReceipt.isError ? "失败" : "等待提交"}</p>}
 </main>
 );
 }
