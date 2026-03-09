@@ -1,9 +1,11 @@
 import { EscrowService } from "../services/escrow";
+import crypto from "node:crypto";
 
 export type CommandDeps = {
   escrow: EscrowService;
   miniAppBaseUrl: string;
   botUsername?: string;
+  deepLinkSecret: string;
 };
 
 export function buildMiniAppUrl(deps: CommandDeps, params: {
@@ -11,16 +13,21 @@ export function buildMiniAppUrl(deps: CommandDeps, params: {
   action?: "open" | "pay" | "release" | "dispute" | "vote";
   extra?: string;
 }) {
+  const action = params.action || "open";
+  const extra = params.extra || "";
+  const payload = `deal_${params.dealId}:${action}:${extra}`;
+  const signature = crypto.createHmac("sha256", deps.deepLinkSecret).update(payload).digest("hex").slice(0, 16);
+  const startApp = `deal_${params.dealId}:${action}${extra ? `:${extra}` : ""}:${signature}`;
+
   if (deps.botUsername) {
-    const suffix = params.action ? `:${params.action}` : "";
-    const extra = params.extra ? `:${params.extra}` : "";
-    return `https://t.me/${deps.botUsername}/app?startapp=deal_${params.dealId}${suffix}${extra}`;
+    return `https://t.me/${deps.botUsername}/app?startapp=${startApp}`;
   }
   const search = new URLSearchParams({
     dealId: String(params.dealId),
-    action: params.action || "open"
+    action,
+    sig: signature
   });
-  if (params.extra) search.set("extra", params.extra);
+  if (extra) search.set("extra", extra);
   return `${deps.miniAppBaseUrl}?${search.toString()}`;
 }
 
