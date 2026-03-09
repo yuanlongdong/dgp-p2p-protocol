@@ -9,21 +9,25 @@ import { registerStatus } from "./commands/status";
 import { EscrowService } from "./services/escrow";
 import { startEventRelay } from "./services/events";
 import { SupportedNetwork } from "./config/networks";
+import { auditLog } from "./services/audit-log";
 
-const botToken = process.env.BOT_TOKEN;
-if (!botToken) {
-  throw new Error("BOT_TOKEN is required");
+function requiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is required`);
+  return value;
 }
 
-const miniAppBaseUrl = process.env.MINIAPP_URL || "https://example.com/miniapp";
-const botUsername = process.env.BOT_USERNAME;
+const botToken = requiredEnv("BOT_TOKEN");
+const botUsername = requiredEnv("BOT_USERNAME");
+const miniAppBaseUrl = requiredEnv("MINIAPP_URL");
+const escrowFactory = requiredEnv("ESCROW_FACTORY") as `0x${string}`;
+const disputeModule = requiredEnv("DISPUTE_MODULE") as `0x${string}`;
+const deepLinkSecret = requiredEnv("DEEPLINK_SECRET");
 const network = (process.env.DGP_NETWORK || "arbSepolia") as SupportedNetwork;
-const escrowFactory = process.env.ESCROW_FACTORY as `0x${string}` | undefined;
-const disputeModule = process.env.DISPUTE_MODULE as `0x${string}` | undefined;
 
 const bot = new Telegraf(botToken);
 const escrow = new EscrowService(process.env.DEAL_STORE_PATH);
-const deps = { escrow, miniAppBaseUrl, botUsername };
+const deps = { escrow, miniAppBaseUrl, botUsername, deepLinkSecret };
 
 registerHelp(bot, { officialFactory: escrowFactory });
 registerDeal(bot, deps);
@@ -42,8 +46,12 @@ startEventRelay(bot, {
 });
 
 bot.launch().then(() => {
-  // eslint-disable-next-line no-console
-  console.log("telegram bot started");
+  auditLog("botStarted", {
+    network,
+    miniAppBaseUrl,
+    escrowFactory,
+    disputeModule
+  });
 });
 
 process.once("SIGINT", () => bot.stop("SIGINT"));
