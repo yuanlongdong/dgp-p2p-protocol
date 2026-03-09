@@ -1,5 +1,5 @@
 import { Markup, Telegraf } from "telegraf";
-import { CommandDeps, formatDealCard } from "./types";
+import { buildMiniAppUrl, CommandDeps, formatDealCard } from "./types";
 
 export function registerDeal(bot: Telegraf, deps: CommandDeps) {
   bot.command("deal", async (ctx) => {
@@ -33,7 +33,7 @@ export function registerDeal(bot: Telegraf, deps: CommandDeps) {
       token
     });
 
-    const openUrl = `${deps.miniAppBaseUrl}?dealId=${deal.id}`;
+    const openUrl = buildMiniAppUrl(deps, { dealId: deal.id, action: "open" });
     await ctx.reply(
       `${formatDealCard({
         id: deal.id,
@@ -42,8 +42,8 @@ export function registerDeal(bot: Telegraf, deps: CommandDeps) {
         amount,
         token,
         status: deal.status
-      })}\n\nOpen secure escrow:`,
-      Markup.inlineKeyboard([Markup.button.url("Open Deal", openUrl)])
+      })}\n\nFunds secured by smart contract.\nAdmin cannot access funds.\nOpen secure escrow:`,
+      Markup.inlineKeyboard([Markup.button.url("Open Escrow", openUrl)])
     );
   });
 }
