@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { isAddress } from "viem";
 import {
 WagmiProvider, createConfig, http,
 useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract
@@ -82,6 +83,7 @@ const [escrowAddrForDispute, setEscrowAddrForDispute] = useState("");
 const [disputeId, setDisputeId] = useState("1");
 const [voteDisputeId, setVoteDisputeId] = useState("1");
 const [sellerBps, setSellerBps] = useState("7000");
+const [formError, setFormError] = useState("");
 
 const txReceipt = useWaitForTransactionReceipt({
 hash: txHash ? (txHash as `0x${string}`) : undefined,
@@ -103,13 +105,33 @@ args: [BigInt(disputeId || "1")],
 query: { enabled: !!dispute }
 });
 
+const parseUint = (v: string): bigint | null => {
+if (!/^\d+$/.test(v.trim())) return null;
+try {
+return BigInt(v);
+} catch {
+return null;
+}
+};
+
 async function onCreate() {
 if (!factory) return alert("请先配置 VITE_ESCROW_FACTORY");
+if (!isConnected) return alert("请先连接钱包");
+const parsedAmount = parseUint(amount);
+const parsedTimeout = parseUint(timeoutAt);
+if (!isAddress(seller)) return setFormError("seller 地址无效");
+if (!isAddress(token)) return setFormError("token 地址无效");
+if (parsedAmount === null || parsedAmount <= 0n) return setFormError("amount 必须是大于 0 的整数");
+if (parsedTimeout === null || parsedTimeout <= BigInt(Math.floor(Date.now() / 1000))) {
+return setFormError("timeoutAt 必须晚于当前时间");
+}
+if (!cid.trim()) return setFormError("evidence CID 不能为空");
+setFormError("");
 const hash = await writeContractAsync({
 address: factory as `0x${string}`,
 abi: escrowFactoryAbi,
 functionName: "createEscrow",
-args: [seller as `0x${string}`, token as `0x${string}`, BigInt(amount), BigInt(timeoutAt), cid]
+args: [seller as `0x${string}`, token as `0x${string}`, parsedAmount, parsedTimeout, cid]
 });
 setTxHash(hash);
 setTimeout(() => nextEscrow.refetch(), 3000);
@@ -153,6 +175,21 @@ votes: Number(disputeInfo.data[3])
 }
 : null;
 
+const parsedAmount = parseUint(amount);
+const parsedTimeout = parseUint(timeoutAt);
+
+const createDisabled =
+isPending ||
+!isConnected ||
+!factory ||
+!isAddress(seller) ||
+!isAddress(token) ||
+parsedAmount === null ||
+parsedAmount <= 0n ||
+parsedTimeout === null ||
+parsedTimeout <= BigInt(Math.floor(Date.now() / 1000)) ||
+!cid.trim();
+
 return (
 <main style={{ maxWidth: 860, margin: "24px auto", fontFamily: "sans-serif", lineHeight: 1.5 }}>
 <h1>DGP-P2P Web (Phase 9)</h1>
@@ -168,7 +205,8 @@ return (
 <input placeholder="amount" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
 <input placeholder="timeoutAt(unix)" value={timeoutAt} onChange={(e) => setTimeoutAt(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
 <input placeholder="evidence CID" value={cid} onChange={(e) => setCid(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<button onClick={onCreate} disabled={isPending}>{isPending ? "发送中..." : "创建 Escrow"}</button>
+<button onClick={onCreate} disabled={createDisabled}>{isPending ? "发送中..." : "创建 Escrow"}</button>
+{formError && <p style={{ color: "#c1121f" }}>{formError}</p>}
 
 <hr />
 <h3>Open Dispute</h3>
