@@ -31,7 +31,7 @@ const registry = await Registry.deploy(deployer.address);
 await registry.waitForDeployment();
 
 const Dispute = await ethers.getContractFactory("DisputeModule");
-const dispute = await Dispute.deploy(await registry.getAddress(), 2, 2, 3600);
+const dispute = await Dispute.deploy(await registry.getAddress(), 2, 2, 86400);
 await dispute.waitForDeployment();
 
 const Factory = await ethers.getContractFactory("EscrowFactory");
