@@ -4,5 +4,5 @@
 - [x] #5 [Web] createEscrow form validation + tx status
 - [x] #4 [Web] Wallet connect UX + chain guard
 - [x] #3 [Contracts] Deployment scripts for Arbitrum Sepolia / Optimism Sepolia
-- [ ] #2 [Contracts] DisputeModule add timeout + quorum + vote window
+- [x] #2 [Contracts] DisputeModule add timeout + quorum + vote window
 - [ ] #1 [Contracts] EscrowCore lifecycle hardening + guards
