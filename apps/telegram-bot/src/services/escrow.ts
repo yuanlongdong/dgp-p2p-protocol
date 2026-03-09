@@ -72,9 +72,9 @@ export class EscrowService {
     amount: string;
     token: string;
   }): Deal {
-    let dealId = this.generateDealId();
+    let dealId = this.generateDealId(input.chatId);
     while (this.deals.has(dealId)) {
-      dealId = this.generateDealId();
+      dealId = this.generateDealId(input.chatId);
     }
 
     const deal: Deal = {
@@ -94,8 +94,10 @@ export class EscrowService {
     return deal;
   }
 
-  private generateDealId(): number {
-    const raw = crypto.randomBytes(4).readUInt32BE(0);
+  private generateDealId(chatId: number): number {
+    const seed = `${chatId}:${Date.now()}:${Math.random()}:${crypto.randomBytes(8).toString("hex")}`;
+    const hex = crypto.createHash("sha256").update(seed).digest("hex").slice(0, 12);
+    const raw = Number.parseInt(hex, 16);
     return 100000 + (raw % 900000);
   }
 
