@@ -6,18 +6,18 @@ const network = process.argv[2] || "arbSepolia";
 const root = process.cwd();
 const strict = process.env.HEALTHCHECK_STRICT === "1";
 
-const deploymentPath = path.join(root, "packages", "contracts", "deployments", ${network}.json);
+const deploymentPath = path.join(root, "packages", "contracts", "deployments", `${network}.json`);
 const preflightPath = path.join(root, "packages", "contracts", "deployments", "production-preflight.json");
 
 const failures = [];
 const warnings = [];
 
 if (!existsSync(deploymentPath)) {
-  warnings.push(deployment file missing: ${deploymentPath});
+  warnings.push(`deployment file missing: ${deploymentPath}`);
 }
 
 if (!existsSync(preflightPath)) {
-  warnings.push(preflight file missing: ${preflightPath});
+  warnings.push(`preflight file missing: ${preflightPath}`);
 } else {
   try {
     const preflight = JSON.parse(readFileSync(preflightPath, "utf8"));
@@ -25,7 +25,7 @@ if (!existsSync(preflightPath)) {
       warnings.push("production-preflight.json reports non-ready status");
     }
   } catch (err) {
-    failures.push(invalid preflight json: ${String(err)});
+    failures.push(`invalid preflight json: ${String(err)}`);
   }
 }
 
@@ -34,25 +34,25 @@ if (existsSync(deploymentPath)) {
     const deployment = JSON.parse(readFileSync(deploymentPath, "utf8"));
     const contracts = deployment.contracts || {};
     for (const key of ["escrowFactory", "disputeModule", "mediatorRegistry"]) {
-      if (!contracts[key]) failures.push(missing contracts.${key} in ${deploymentPath});
+      if (!contracts[key]) failures.push(`missing contracts.${key} in ${deploymentPath}`);
     }
   } catch (err) {
-    failures.push(invalid deployment json: ${String(err)});
+    failures.push(`invalid deployment json: ${String(err)}`);
   }
 }
 
 if (strict && warnings.length > 0) {
-  failures.push(...warnings.map((w) => strict-warning: ${w}));
+  failures.push(...warnings.map((w) => `strict-warning: ${w}`));
 }
 
-console.log([healthcheck] network=${network} strict=${strict ? "1" : "0"});
+console.log(`[healthcheck] network=${network} strict=${strict ? "1" : "0"}`);
 if (warnings.length > 0) {
   console.log("[healthcheck] warnings:");
-  for (const warning of warnings) console.log(- ${warning});
+  for (const warning of warnings) console.log(`- ${warning}`);
 }
 if (failures.length > 0) {
   console.log("[healthcheck] failures:");
-  for (const failure of failures) console.log(- ${failure});
+  for (const failure of failures) console.log(`- ${failure}`);
   process.exit(1);
 }
 console.log("[healthcheck] ok");
