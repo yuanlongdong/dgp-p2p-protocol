@@ -1,5 +1,5 @@
 import { Markup, Telegraf } from "telegraf";
-import { CommandDeps } from "./types";
+import { buildMiniAppUrl, CommandDeps } from "./types";
 
 export function registerDispute(bot: Telegraf, deps: CommandDeps) {
   bot.command("dispute", async (ctx) => {
@@ -18,7 +18,7 @@ export function registerDispute(bot: Telegraf, deps: CommandDeps) {
     }
 
     deps.escrow.setStatus(deal.id, "DISPUTED");
-    const disputeUrl = `${deps.miniAppBaseUrl}?dealId=${deal.id}&action=dispute`;
+    const disputeUrl = buildMiniAppUrl(deps, { dealId: deal.id, action: "dispute" });
     await ctx.reply(
       `⚠️ Dispute opened\nDeal #${deal.id}\nVoting window: 24h`,
       Markup.inlineKeyboard([
