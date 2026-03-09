@@ -10,6 +10,7 @@ import { EscrowService } from "./services/escrow";
 import { startEventRelay } from "./services/events";
 import { SupportedNetwork } from "./config/networks";
 import { auditLog } from "./services/audit-log";
+import { startTelegramAuthServer } from "./services/telegram-auth";
 
 function requiredEnv(name: string): string {
   const value = process.env[name];
@@ -24,6 +25,7 @@ const escrowFactory = requiredEnv("ESCROW_FACTORY") as `0x${string}`;
 const disputeModule = requiredEnv("DISPUTE_MODULE") as `0x${string}`;
 const deepLinkSecret = requiredEnv("DEEPLINK_SECRET");
 const network = (process.env.DGP_NETWORK || "arbSepolia") as SupportedNetwork;
+const authServerPort = Number(process.env.AUTH_SERVER_PORT || "8787");
 
 const bot = new Telegraf(botToken);
 const escrow = new EscrowService(process.env.DEAL_STORE_PATH);
@@ -44,6 +46,13 @@ startEventRelay(bot, {
   disputeModule,
   escrow
 });
+
+if (Number.isFinite(authServerPort) && authServerPort > 0) {
+  startTelegramAuthServer({
+    botToken,
+    port: authServerPort
+  });
+}
 
 bot.launch().then(() => {
   auditLog("botStarted", {
