@@ -22,6 +22,7 @@
     "ops:healthcheck:arb": "node scripts/ops/healthcheck.mjs arbSepolia",
     "ops:healthcheck:op": "node scripts/ops/healthcheck.mjs opSepolia",
     "ops:takeover:check": "pnpm build && pnpm test:contracts",
+    "security:baseline": "node scripts/security/baseline-check.mjs",
     "ops:healthcheck:arb:strict": "HEALTHCHECK_STRICT=1 node scripts/ops/healthcheck.mjs arbSepolia",
     "ops:healthcheck:op:strict": "HEALTHCHECK_STRICT=1 node scripts/ops/healthcheck.mjs opSepolia"
   }
