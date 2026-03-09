@@ -1,5 +1,6 @@
 import { Markup, Telegraf } from "telegraf";
 import { buildMiniAppUrl, CommandDeps, formatDealCard } from "./types";
+import { auditLog } from "../services/audit-log";
 
 export function registerDeal(bot: Telegraf, deps: CommandDeps) {
   bot.command("deal", async (ctx) => {
@@ -31,6 +32,14 @@ export function registerDeal(bot: Telegraf, deps: CommandDeps) {
       sellerUsername: seller,
       amount,
       token
+    });
+    auditLog("dealCreated", {
+      dealId: deal.id,
+      chatId: deal.chatId,
+      buyer: deal.buyerUsername,
+      seller: deal.sellerUsername,
+      amount: deal.amount,
+      token: deal.token
     });
 
     const openUrl = buildMiniAppUrl(deps, { dealId: deal.id, action: "open" });
