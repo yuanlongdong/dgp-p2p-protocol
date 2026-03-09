@@ -1,4 +1,4 @@
-- [ ] #10 [Infra] CI pipeline + security baseline checklist
+- [x] #10 [Infra] CI pipeline + security baseline checklist
 - [ ] #7 [MiniApp] Telegram WebApp SDK bootstrap
 - [ ] #6 [Web] Dispute flow: open / vote / query panel
 - [ ] #5 [Web] createEscrow form validation + tx status
