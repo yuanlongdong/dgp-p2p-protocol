@@ -2,6 +2,7 @@ import { Markup, Telegraf } from "telegraf";
 import { buildMiniAppUrl, CommandDeps } from "./types";
 import { auditLog } from "../services/audit-log";
 import { createT } from "../i18n";
+import { withTelegramApiGuard } from "../services/telegram-safe";
 
 export function registerDispute(bot: Telegraf, deps: CommandDeps) {
   bot.command("dispute", async (ctx) => {
@@ -59,36 +60,28 @@ export function registerDispute(bot: Telegraf, deps: CommandDeps) {
     const sideLabel = side === "buyer" ? t("side.buyer") : t("side.seller");
     const deal = deps.escrow.getDeal(dealId);
     if (!deal) {
-      try {
-        await ctx.answerCbQuery(t("error.dealNotFound"));
-      } catch (error) {
-        const err = error instanceof Error ? error : new Error(String(error));
-        auditLog("telegramApiError", {
-          action: "answerCbQuery",
-          command: "vote",
-          dealId,
-          errorName: err.name,
-          errorMessage: err.message,
-        });
-      }
-      return;
-    }
-
-    try {
-      await ctx.answerCbQuery(t("dispute.vote.recorded", { side: sideLabel }));
-      await ctx.reply(
-        t("dispute.vote.submitted", { dealId: deal.id, side: sideLabel })
-      );
-    } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      auditLog("telegramApiError", {
-        action: "vote",
-        dealId: deal.id,
-        errorName: err.name,
-        errorMessage: err.message,
+      await withTelegramApiGuard({
+        action: "answerCbQuery",
+        meta: { command: "vote", dealId },
+        run: () => ctx.answerCbQuery(t("error.dealNotFound")),
       });
       return;
     }
+
+    await withTelegramApiGuard({
+      action: "answerCbQuery",
+      meta: { command: "vote", dealId: deal.id },
+      run: () =>
+        ctx.answerCbQuery(t("dispute.vote.recorded", { side: sideLabel })),
+    });
+    await withTelegramApiGuard({
+      action: "reply",
+      meta: { command: "vote", dealId: deal.id },
+      run: () =>
+        ctx.reply(
+          t("dispute.vote.submitted", { dealId: deal.id, side: sideLabel })
+        ),
+    });
 
     auditLog("voteIntent", {
       dealId: deal.id,
