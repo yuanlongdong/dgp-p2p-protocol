@@ -1,0 +1,5 @@
+[
+  {"name":"smoke","users":10,"opsPerUser":20,"concurrency":5,"failureBps":50},
+  {"name":"baseline","users":50,"opsPerUser":40,"concurrency":20,"failureBps":100},
+  {"name":"stress","users":120,"opsPerUser":60,"concurrency":40,"failureBps":200}
+]

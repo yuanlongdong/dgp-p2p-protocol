@@ -1,14 +1,143 @@
 import React, { useMemo, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { isAddress } from "viem";
 import {
-  WagmiProvider, createConfig, http,
-  useAccount, useConnect, useDisconnect, useReadContract,
-  useSwitchChain, useWaitForTransactionReceipt, useWriteContract
+WagmiProvider, createConfig, http,
+useAccount, useChainId, useConnect, useDisconnect, useReadContract, useSwitchChain, useWaitForTransactionReceipt, useWriteContract
 } from "wagmi";
 import { arbitrumSepolia } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
 import { isAddress } from "viem";
+
+type Locale = "zh-CN" | "en";
+
+const translations: Record<Locale, Record<string, string>> = {
+  "zh-CN": {
+    appTitle: "DGP-P2P Web（阶段 9）",
+    walletLabel: "钱包：",
+    walletConnected: "已连接 {address}",
+    walletDisconnected: "未连接",
+    networkLabel: "网络：",
+    networkUnknown: "-",
+    networkRightSuffix: "（正确）",
+    networkWrongSuffix: "（错误链）",
+    connectWallet: "连接钱包",
+    connecting: "连接中...",
+    disconnectWallet: "断开钱包",
+    switchChain: "切换到 Arbitrum Sepolia",
+    switching: "切链中...",
+    wrongChainWarning: "当前链不正确，已阻止交易操作。",
+    factoryLabel: "工厂合约：",
+    disputeLabel: "争议合约：",
+    nextEscrowIdLabel: "下一个 EscrowId：",
+    notSet: "未配置",
+    loading: "读取中...",
+    createSection: "创建 Escrow",
+    sellerPlaceholder: "卖家地址 0x...",
+    tokenPlaceholder: "代币地址 0x...",
+    amountPlaceholder: "数量",
+    timeoutPlaceholder: "截止时间（Unix）",
+    cidPlaceholder: "证据 CID",
+    createButton: "创建托管",
+    sending: "发送中...",
+    openDisputeSection: "发起争议",
+    escrowPlaceholder: "托管地址 0x...",
+    openDisputeButton: "发起争议",
+    voteSection: "争议投票",
+    disputeIdPlaceholder: "争议 ID",
+    sellerBpsPlaceholder: "卖家比例 BPS（0~10000）",
+    voteButton: "提交投票",
+    querySection: "查询争议",
+    refreshDispute: "刷新争议状态",
+    txLabel: "交易：",
+    txStatusLabel: "交易状态：",
+    txPending: "确认中...",
+    txSuccess: "已上链",
+    txError: "失败",
+    txIdle: "等待提交",
+    resolved: "已裁决",
+    resolving: "处理中",
+    alertNeedFactory: "请先配置 VITE_ESCROW_FACTORY",
+    alertNeedDispute: "请先配置 VITE_DISPUTE_MODULE",
+    alertNeedWallet: "请先连接钱包",
+    alertWrongChain: "当前网络错误，请切换到 Arbitrum Sepolia",
+    errorInvalidSeller: "卖家地址无效",
+    errorInvalidToken: "代币地址无效",
+    errorInvalidAmount: "数量必须是大于 0 的整数",
+    errorInvalidTimeout: "截止时间必须晚于当前时间",
+    errorInvalidCid: "证据 CID 不能为空",
+    errorInvalidSellerBps: "卖家比例必须在 0~10000"
+  },
+  en: {
+    appTitle: "DGP-P2P Web (Phase 9)",
+    walletLabel: "Wallet: ",
+    walletConnected: "Connected {address}",
+    walletDisconnected: "Disconnected",
+    networkLabel: "Network: ",
+    networkUnknown: "-",
+    networkRightSuffix: " (ok)",
+    networkWrongSuffix: " (wrong)",
+    connectWallet: "Connect Wallet",
+    connecting: "Connecting...",
+    disconnectWallet: "Disconnect",
+    switchChain: "Switch to Arbitrum Sepolia",
+    switching: "Switching...",
+    wrongChainWarning: "Wrong network. Transactions are blocked.",
+    factoryLabel: "Factory: ",
+    disputeLabel: "Dispute: ",
+    nextEscrowIdLabel: "nextEscrowId: ",
+    notSet: "NOT_SET",
+    loading: "Loading...",
+    createSection: "Create Escrow",
+    sellerPlaceholder: "seller 0x...",
+    tokenPlaceholder: "token 0x...",
+    amountPlaceholder: "amount",
+    timeoutPlaceholder: "timeoutAt (Unix)",
+    cidPlaceholder: "evidence CID",
+    createButton: "Create Escrow",
+    sending: "Sending...",
+    openDisputeSection: "Open Dispute",
+    escrowPlaceholder: "escrow address 0x...",
+    openDisputeButton: "Open Dispute",
+    voteSection: "Vote Dispute",
+    disputeIdPlaceholder: "disputeId",
+    sellerBpsPlaceholder: "sellerBps (0~10000)",
+    voteButton: "Submit Vote",
+    querySection: "Query Dispute",
+    refreshDispute: "Refresh",
+    txLabel: "Tx: ",
+    txStatusLabel: "Tx Status: ",
+    txPending: "Confirming...",
+    txSuccess: "Confirmed",
+    txError: "Failed",
+    txIdle: "Waiting",
+    resolved: "Resolved",
+    resolving: "Pending",
+    alertNeedFactory: "Please set VITE_ESCROW_FACTORY first.",
+    alertNeedDispute: "Please set VITE_DISPUTE_MODULE first.",
+    alertNeedWallet: "Please connect your wallet first.",
+    alertWrongChain: "Wrong network. Please switch to Arbitrum Sepolia.",
+    errorInvalidSeller: "Invalid seller address.",
+    errorInvalidToken: "Invalid token address.",
+    errorInvalidAmount: "Amount must be a positive integer.",
+    errorInvalidTimeout: "timeoutAt must be later than now.",
+    errorInvalidCid: "Evidence CID is required.",
+    errorInvalidSellerBps: "sellerBps must be between 0 and 10000."
+  }
+};
+
+const resolveLocale = (): Locale => {
+  const envLang = (import.meta as any).env?.VITE_LANG as string | undefined;
+  const raw = (envLang || "zh-CN").toLowerCase();
+  return raw.startsWith("en") ? "en" : "zh-CN";
+};
+
+const t = (key: string, params: Record<string, string | number> = {}) => {
+  const locale = resolveLocale();
+  const template = translations[locale][key] ?? translations["zh-CN"][key] ?? key;
+  return template.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ""));
+};
 
 const queryClient = new QueryClient();
 const config = createConfig({
@@ -159,11 +288,14 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
 }
 
 function Panel() {
-const { address, isConnected, chainId } = useAccount();
-const { connect, connectors, isPending: connectPending } = useConnect();
+const { address, isConnected } = useAccount();
+const chainId = useChainId();
+const { connect, isPending: isConnectPending } = useConnect();
 const { disconnect } = useDisconnect();
-const { switchChain } = useSwitchChain();
+const { switchChainAsync, isPending: isSwitchPending } = useSwitchChain();
 const { writeContractAsync, isPending } = useWriteContract();
+const targetChainId = arbitrumSepolia.id;
+const isWrongChain = isConnected && chainId !== targetChainId;
 
 const factory = (import.meta as any).env?.VITE_ESCROW_FACTORY || "";
 const dispute = (import.meta as any).env?.VITE_DISPUTE_MODULE || "";
@@ -184,16 +316,13 @@ const [uiError, setUiError] = useState("");
 const [escrowAddrForDispute, setEscrowAddrForDispute] = useState("");
 const [disputeId, setDisputeId] = useState("1");
 const [voteDisputeId, setVoteDisputeId] = useState("1");
-const [voteSellerBps, setVoteSellerBps] = useState("7000");
+const [sellerBps, setSellerBps] = useState("7000");
+const [formError, setFormError] = useState("");
 
-const [escrowActionAddr, setEscrowActionAddr] = useState("");
-const [escrowActionCid, setEscrowActionCid] = useState("ipfs://dispute");
-const [historyJson, setHistoryJson] = useState("[]");
-const [proposalKind, setProposalKind] = useState("0");
-const [proposalValue, setProposalValue] = useState("120");
-const [proposalDesc, setProposalDesc] = useState("Adjust protocol parameter");
-const [govProposalId, setGovProposalId] = useState("1");
-const [govSupport, setGovSupport] = useState(true);
+const txReceipt = useWaitForTransactionReceipt({
+hash: txHash ? (txHash as `0x${string}`) : undefined,
+query: { enabled: !!txHash }
+});
 
 const nextEscrow = useReadContract({
 address: factory ? (factory as `0x${string}`) : undefined,
@@ -210,51 +339,34 @@ args: [BigInt(disputeId || "1")],
 query: { enabled: !!dispute }
 });
 
-const proposalCount = useReadContract({
-address: governor ? (governor as `0x${string}`) : undefined,
-abi: governorAbi,
-functionName: "proposalCount",
-query: { enabled: !!governor }
-});
-
-const proposalState = useReadContract({
-address: governor ? (governor as `0x${string}`) : undefined,
-abi: governorAbi,
-functionName: "state",
-args: [BigInt(govProposalId || "1")],
-query: { enabled: !!governor && /^\d+$/.test(govProposalId || "") }
-});
-
-const txReceipt = useWaitForTransactionReceipt({ hash: txHash });
-
-const createErrors = useMemo(() => {
-const errors: string[] = [];
-if (!isAddress(seller || "0x")) errors.push("seller 地址无效");
-if (!isAddress(token || "0x")) errors.push("token 地址无效");
-if (!/^\d+$/.test(amount) || BigInt(amount || "0") <= 0n) errors.push("amount 必须是正整数");
-if (!/^\d+$/.test(timeoutAt) || BigInt(timeoutAt || "0") <= BigInt(Math.floor(Date.now() / 1000))) errors.push("timeoutAt 必须大于当前时间");
-if (!cid.trim()) errors.push("evidenceCID 不能为空");
-return errors;
-}, [seller, token, amount, timeoutAt, cid]);
-
-const canTransact = isConnected && !wrongChain;
-
-function clearError() {
-setUiError("");
+const parseUint = (v: string): bigint | null => {
+if (!/^\d+$/.test(v.trim())) return null;
+try {
+return BigInt(v);
+} catch {
+return null;
 }
+};
 
 async function onCreate() {
-clearError();
-if (!factory) return alert("请先配置 VITE_ESCROW_FACTORY");
-if (createErrors.length) return setUiError(createErrors.join("；"));
-if (!canTransact) return setUiError("请先连接钱包并切换到 Arbitrum Sepolia");
-try {
-setStatusText("发送 createEscrow 交易中...");
+if (!factory) return alert(t("alertNeedFactory"));
+if (!isConnected) return alert(t("alertNeedWallet"));
+if (isWrongChain) return alert(t("alertWrongChain"));
+const parsedAmount = parseUint(amount);
+const parsedTimeout = parseUint(timeoutAt);
+if (!isAddress(seller)) return setFormError(t("errorInvalidSeller"));
+if (!isAddress(token)) return setFormError(t("errorInvalidToken"));
+if (parsedAmount === null || parsedAmount <= 0n) return setFormError(t("errorInvalidAmount"));
+if (parsedTimeout === null || parsedTimeout <= BigInt(Math.floor(Date.now() / 1000))) {
+return setFormError(t("errorInvalidTimeout"));
+}
+if (!cid.trim()) return setFormError(t("errorInvalidCid"));
+setFormError("");
 const hash = await writeContractAsync({
 address: factory as `0x${string}`,
 abi: escrowFactoryAbi,
 functionName: "createEscrow",
-args: [seller as `0x${string}`, token as `0x${string}`, BigInt(amount), BigInt(timeoutAt), cid]
+args: [seller as `0x${string}`, token as `0x${string}`, parsedAmount, parsedTimeout, cid]
 });
 setTxHash(hash);
 setStatusText("已提交 createEscrow，等待链上确认...");
@@ -266,12 +378,9 @@ setUiError(e?.shortMessage || e?.message || "交易失败");
 }
 
 async function onOpenDispute() {
-clearError();
-if (!dispute) return alert("请先配置 VITE_DISPUTE_MODULE");
-if (!isAddress(escrowAddrForDispute || "0x")) return setUiError("escrow 地址无效");
-if (!canTransact) return setUiError("请先连接钱包并切换到 Arbitrum Sepolia");
-try {
-setStatusText("发送 openDispute 交易中...");
+if (!dispute) return alert(t("alertNeedDispute"));
+if (!isConnected) return alert(t("alertNeedWallet"));
+if (isWrongChain) return alert(t("alertWrongChain"));
 const hash = await writeContractAsync({
 address: dispute as `0x${string}`,
 abi: disputeAbi,
@@ -288,300 +397,109 @@ setUiError(e?.shortMessage || e?.message || "交易失败");
 }
 
 async function onVote() {
-clearError();
-if (!dispute) return alert("请先配置 VITE_DISPUTE_MODULE");
-if (!/^\d+$/.test(voteDisputeId)) return setUiError("vote disputeId 无效");
-if (!/^\d+$/.test(voteSellerBps)) return setUiError("sellerBps 无效");
-const bps = Number(voteSellerBps);
-if (bps < 0 || bps > 10000) return setUiError("sellerBps 需在 0~10000");
-if (!canTransact) return setUiError("请先连接钱包并切换到 Arbitrum Sepolia");
-try {
-setStatusText("发送 vote 交易中...");
+if (!dispute) return alert(t("alertNeedDispute"));
+if (!isConnected) return alert(t("alertNeedWallet"));
+if (isWrongChain) return alert(t("alertWrongChain"));
+const voteBps = Number(sellerBps);
+if (Number.isNaN(voteBps) || voteBps < 0 || voteBps > 10000) {
+return alert(t("errorInvalidSellerBps"));
+}
 const hash = await writeContractAsync({
 address: dispute as `0x${string}`,
 abi: disputeAbi,
 functionName: "vote",
-args: [BigInt(voteDisputeId), bps]
+args: [BigInt(voteDisputeId || "1"), voteBps]
 });
 setTxHash(hash);
-setStatusText("已提交 vote，等待链上确认...");
+setDisputeId(voteDisputeId || "1");
 setTimeout(() => disputeInfo.refetch(), 3000);
-} catch (e: any) {
-setStatusText("vote 失败");
-setUiError(e?.shortMessage || e?.message || "交易失败");
-}
 }
 
-async function onEscrowFund() {
-clearError();
-if (!isAddress(escrowActionAddr || "0x")) return setUiError("escrow 地址无效");
-if (!canTransact) return setUiError("请先连接钱包并切换到 Arbitrum Sepolia");
-try {
-setStatusText("发送 fund 交易中...");
-const hash = await writeContractAsync({
-address: escrowActionAddr as `0x${string}`,
-abi: escrowAbi,
-functionName: "fund"
-});
-setTxHash(hash);
-setStatusText("已提交 fund，等待链上确认...");
-} catch (e: any) {
-setStatusText("fund 失败");
-setUiError(e?.shortMessage || e?.message || "交易失败");
+const disputeSummary = disputeInfo.data
+? {
+escrow: disputeInfo.data[0],
+resolved: disputeInfo.data[1] ? t("resolved") : t("resolving"),
+sellerBps: Number(disputeInfo.data[2]),
+votes: Number(disputeInfo.data[3])
 }
-}
+: null;
 
-async function onEscrowRelease() {
-clearError();
-if (!isAddress(escrowActionAddr || "0x")) return setUiError("escrow 地址无效");
-if (!canTransact) return setUiError("请先连接钱包并切换到 Arbitrum Sepolia");
-try {
-setStatusText("发送 releaseToSeller 交易中...");
-const hash = await writeContractAsync({
-address: escrowActionAddr as `0x${string}`,
-abi: escrowAbi,
-functionName: "releaseToSeller"
-});
-setTxHash(hash);
-setStatusText("已提交 releaseToSeller，等待链上确认...");
-} catch (e: any) {
-setStatusText("releaseToSeller 失败");
-setUiError(e?.shortMessage || e?.message || "交易失败");
-}
-}
+const parsedAmount = parseUint(amount);
+const parsedTimeout = parseUint(timeoutAt);
 
-async function onEscrowDispute() {
-clearError();
-if (!isAddress(escrowActionAddr || "0x")) return setUiError("escrow 地址无效");
-if (!escrowActionCid.trim()) return setUiError("争议 CID 不能为空");
-if (!canTransact) return setUiError("请先连接钱包并切换到 Arbitrum Sepolia");
-try {
-setStatusText("发送 markDispute 交易中...");
-const hash = await writeContractAsync({
-address: escrowActionAddr as `0x${string}`,
-abi: escrowAbi,
-functionName: "markDispute",
-args: [escrowActionCid]
-});
-setTxHash(hash);
-setStatusText("已提交 markDispute，等待链上确认...");
-} catch (e: any) {
-setStatusText("markDispute 失败");
-setUiError(e?.shortMessage || e?.message || "交易失败");
-}
-}
+const createDisabled =
+isPending ||
+!isConnected ||
+isWrongChain ||
+!factory ||
+!isAddress(seller) ||
+!isAddress(token) ||
+parsedAmount === null ||
+parsedAmount <= 0n ||
+parsedTimeout === null ||
+parsedTimeout <= BigInt(Math.floor(Date.now() / 1000)) ||
+!cid.trim();
 
-async function onLoadHistory() {
-clearError();
-if (!subgraphUrl) return setUiError("请配置 VITE_SUBGRAPH_URL");
-try {
-setStatusText("查询历史中...");
-const query = `
-query Histories {
-  escrows(first: 10, orderBy: createdAt, orderDirection: desc) { id escrowId buyer seller escrow createdAt }
-  disputes(first: 10, orderBy: openedAt, orderDirection: desc) { id disputeId escrow resolved sellerBps votes openedAt }
-  governanceProposals(first: 10, orderBy: createdAt, orderDirection: desc) {
-    id proposalId proposer kind value description forVotes againstVotes queued executed canceled state createdAt
-  }
-  governanceVotes(first: 20, orderBy: timestamp, orderDirection: desc) {
-    id proposal { id } voter support weight timestamp
-  }
-  complianceActions(first: 20, orderBy: timestamp, orderDirection: desc) {
-    id action account actor boolValue riskBps maxRiskBps timestamp
-  }
-}`;
-const resp = await fetch(subgraphUrl, {
-method: "POST",
-headers: { "content-type": "application/json" },
-body: JSON.stringify({ query })
-});
-const data = await resp.json();
-setHistoryJson(JSON.stringify(data?.data ?? data, null, 2));
-setStatusText("历史查询完成");
-} catch (e: any) {
-setStatusText("历史查询失败");
-setUiError(e?.message || "query failed");
-}
-}
-
-async function onGovPropose() {
-clearError();
-if (!governor) return setUiError("请先配置 VITE_DGP_GOVERNOR");
-if (!/^[01]$/.test(proposalKind)) return setUiError("kind 仅支持 0(费率)/1(抵押率)");
-if (!/^\d+$/.test(proposalValue)) return setUiError("proposal value 无效");
-if (!proposalDesc.trim()) return setUiError("description 不能为空");
-if (!canTransact) return setUiError("请先连接钱包并切换到 Arbitrum Sepolia");
-try {
-setStatusText("发送 propose 交易中...");
-const hash = await writeContractAsync({
-address: governor as `0x${string}`,
-abi: governorAbi,
-functionName: "propose",
-args: [Number(proposalKind), Number(proposalValue), proposalDesc]
-});
-setTxHash(hash);
-setStatusText("已提交 propose，等待链上确认...");
-setTimeout(() => proposalCount.refetch(), 3000);
-} catch (e: any) {
-setStatusText("propose 失败");
-setUiError(e?.shortMessage || e?.message || "交易失败");
-}
-}
-
-async function onGovVote() {
-clearError();
-if (!governor) return setUiError("请先配置 VITE_DGP_GOVERNOR");
-if (!/^\d+$/.test(govProposalId)) return setUiError("proposalId 无效");
-if (!canTransact) return setUiError("请先连接钱包并切换到 Arbitrum Sepolia");
-try {
-setStatusText("发送 castVote 交易中...");
-const hash = await writeContractAsync({
-address: governor as `0x${string}`,
-abi: governorAbi,
-functionName: "castVote",
-args: [BigInt(govProposalId), govSupport]
-});
-setTxHash(hash);
-setStatusText("已提交 castVote，等待链上确认...");
-setTimeout(() => proposalState.refetch(), 3000);
-} catch (e: any) {
-setStatusText("castVote 失败");
-setUiError(e?.shortMessage || e?.message || "交易失败");
-}
-}
-
-async function onGovQueue() {
-clearError();
-if (!governor) return setUiError("请先配置 VITE_DGP_GOVERNOR");
-if (!/^\d+$/.test(govProposalId)) return setUiError("proposalId 无效");
-if (!canTransact) return setUiError("请先连接钱包并切换到 Arbitrum Sepolia");
-try {
-setStatusText("发送 queue 交易中...");
-const hash = await writeContractAsync({
-address: governor as `0x${string}`,
-abi: governorAbi,
-functionName: "queue",
-args: [BigInt(govProposalId)]
-});
-setTxHash(hash);
-setStatusText("已提交 queue，等待链上确认...");
-setTimeout(() => proposalState.refetch(), 3000);
-} catch (e: any) {
-setStatusText("queue 失败");
-setUiError(e?.shortMessage || e?.message || "交易失败");
-}
-}
-
-async function onGovExecute() {
-clearError();
-if (!governor) return setUiError("请先配置 VITE_DGP_GOVERNOR");
-if (!/^\d+$/.test(govProposalId)) return setUiError("proposalId 无效");
-if (!canTransact) return setUiError("请先连接钱包并切换到 Arbitrum Sepolia");
-try {
-setStatusText("发送 execute 交易中...");
-const hash = await writeContractAsync({
-address: governor as `0x${string}`,
-abi: governorAbi,
-functionName: "execute",
-args: [BigInt(govProposalId)]
-});
-setTxHash(hash);
-setStatusText("已提交 execute，等待链上确认...");
-setTimeout(() => proposalState.refetch(), 3000);
-} catch (e: any) {
-setStatusText("execute 失败");
-setUiError(e?.shortMessage || e?.message || "交易失败");
-}
-}
 return (
 <main style={{ maxWidth: 860, margin: "24px auto", fontFamily: "sans-serif", lineHeight: 1.5 }}>
-<h1>DGP-P2P Web</h1>
-<p>钱包：{isConnected ? `已连接 ${address}` : "未连接"}</p>
-<p>链：{chainId || "-"} {wrongChain ? "(错误链)" : ""}</p>
-{!isConnected && (
-<button onClick={() => connect({ connector: connectors[0] })} disabled={connectPending}>
-{connectPending ? "连接中..." : "连接钱包"}
+<h1>{t("appTitle")}</h1>
+<p>{t("walletLabel")}{isConnected ? t("walletConnected", { address: address || "" }) : t("walletDisconnected")}</p>
+<p>{t("networkLabel")}{isConnected ? `${chainId}${isWrongChain ? t("networkWrongSuffix") : t("networkRightSuffix")}` : t("networkUnknown")}</p>
+<div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+{!isConnected ? (
+<button onClick={() => connect({ connector: injected() })} disabled={isConnectPending}>
+{isConnectPending ? t("connecting") : t("connectWallet")}
+</button>
+) : (
+<button onClick={() => disconnect()}>{t("disconnectWallet")}</button>
+)}
+{isWrongChain && (
+<button
+onClick={async () => {
+await switchChainAsync({ chainId: targetChainId });
+}}
+disabled={isSwitchPending}
+>
+{isSwitchPending ? t("switching") : t("switchChain")}
 </button>
 )}
-{isConnected && <button onClick={() => disconnect()} style={{ marginRight: 8 }}>断开连接</button>}
-{wrongChain && <button onClick={() => switchChain({ chainId: expectedChain })}>切换到 Arbitrum Sepolia</button>}
-<p>Factory: {factory || "未配置"}</p>
-<p>Dispute: {dispute || "未配置"}</p>
-<p>Governor: {governor || "未配置"}</p>
-<p>nextEscrowId: {nextEscrow.isLoading ? "读取中..." : String(nextEscrow.data ?? "-")}</p>
-<p>交易状态：{isPending ? "钱包确认中..." : statusText}</p>
-{txHash && <p>Tx: {txHash}</p>}
-{txReceipt.isSuccess && <p>链上确认：{txReceipt.data?.status}</p>}
-{uiError && <p style={{ color: "crimson" }}>错误：{uiError}</p>}
-
-<hr />
-<h3>Create Escrow</h3>
-<input placeholder="seller 0x..." value={seller} onChange={(e) => setSeller(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<input placeholder="token 0x..." value={token} onChange={(e) => setToken(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<input placeholder="amount" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<input placeholder="timeoutAt(unix)" value={timeoutAt} onChange={(e) => setTimeoutAt(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<input placeholder="evidence CID" value={cid} onChange={(e) => setCid(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-{createErrors.length > 0 && <p style={{ color: "crimson" }}>校验：{createErrors.join("；")}</p>}
-<button onClick={onCreate} disabled={isPending || createErrors.length > 0}>{isPending ? "发送中..." : "创建 Escrow"}</button>
-
-<hr />
-<h3>Open Dispute</h3>
-<input placeholder="escrow address 0x..." value={escrowAddrForDispute} onChange={(e) => setEscrowAddrForDispute(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<button onClick={onOpenDispute} disabled={isPending}>{isPending ? "发送中..." : "发起争议"}</button>
-
-<hr />
-<h3>Vote Dispute</h3>
-<input placeholder="disputeId" value={voteDisputeId} onChange={(e) => setVoteDisputeId(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<input placeholder="sellerBps(0~10000)" value={voteSellerBps} onChange={(e) => setVoteSellerBps(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<button onClick={onVote} disabled={isPending}>{isPending ? "发送中..." : "投票"}</button>
-
-<hr />
-<h3>Query Dispute</h3>
-<input placeholder="disputeId" value={disputeId} onChange={(e) => setDisputeId(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<button onClick={() => disputeInfo.refetch()}>刷新争议状态</button>
-<pre style={{ background: "#f6f6f6", padding: 12, borderRadius: 8, overflow: "auto" }}>
-{JSON.stringify(disputeInfo.data ?? null, null, 2)}
-</pre>
-
-<hr />
-<h3>Escrow Actions</h3>
-<input placeholder="escrow address 0x..." value={escrowActionAddr} onChange={(e) => setEscrowActionAddr(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<input placeholder="dispute cid" value={escrowActionCid} onChange={(e) => setEscrowActionCid(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<button onClick={onEscrowFund} disabled={isPending} style={{ marginRight: 8 }}>Fund</button>
-<button onClick={onEscrowRelease} disabled={isPending} style={{ marginRight: 8 }}>Release</button>
-<button onClick={onEscrowDispute} disabled={isPending}>Mark Dispute</button>
-
-<hr />
-<h3>History (Subgraph)</h3>
-<p>Subgraph: {subgraphUrl || "未配置"}</p>
-<button onClick={onLoadHistory}>刷新历史</button>
-<pre style={{ background: "#f6f6f6", padding: 12, borderRadius: 8, overflow: "auto" }}>
-{historyJson}
-</pre>
-
-<hr />
-<h3>Governance</h3>
-<p>proposalCount: {proposalCount.isLoading ? "读取中..." : String(proposalCount.data ?? "-")}</p>
-<input placeholder="kind: 0=buyerFeeBps, 1=minCollateralBps" value={proposalKind} onChange={(e) => setProposalKind(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<input placeholder="value" value={proposalValue} onChange={(e) => setProposalValue(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<input placeholder="description" value={proposalDesc} onChange={(e) => setProposalDesc(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<button onClick={onGovPropose} disabled={isPending} style={{ marginRight: 8 }}>Propose</button>
-
-<div style={{ marginTop: 12 }}>
-<input placeholder="proposalId" value={govProposalId} onChange={(e) => setGovProposalId(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<label style={{ marginRight: 8 }}>
-<input type="radio" checked={govSupport} onChange={() => setGovSupport(true)} />
- 支持
-</label>
-<label>
-<input type="radio" checked={!govSupport} onChange={() => setGovSupport(false)} />
- 反对
-</label>
 </div>
-<p>state: {proposalState.isLoading ? "读取中..." : String(proposalState.data ?? "-")}</p>
-<button onClick={onGovVote} disabled={isPending} style={{ marginRight: 8 }}>Cast Vote</button>
-<button onClick={onGovQueue} disabled={isPending} style={{ marginRight: 8 }}>Queue</button>
-<button onClick={onGovExecute} disabled={isPending}>Execute</button>
+{isWrongChain && <p style={{ color: "#c1121f" }}>{t("wrongChainWarning")}</p>}
+<p>{t("factoryLabel")}{factory || t("notSet")}</p>
+<p>{t("disputeLabel")}{dispute || t("notSet")}</p>
+<p>{t("nextEscrowIdLabel")}{nextEscrow.isLoading ? t("loading") : String(nextEscrow.data ?? "-")}</p>
+
+<hr />
+<h3>{t("createSection")}</h3>
+<input placeholder={t("sellerPlaceholder")} value={seller} onChange={(e) => setSeller(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<input placeholder={t("tokenPlaceholder")} value={token} onChange={(e) => setToken(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<input placeholder={t("amountPlaceholder")} value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<input placeholder={t("timeoutPlaceholder")} value={timeoutAt} onChange={(e) => setTimeoutAt(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<input placeholder={t("cidPlaceholder")} value={cid} onChange={(e) => setCid(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<button onClick={onCreate} disabled={createDisabled}>{isPending ? t("sending") : t("createButton")}</button>
+{formError && <p style={{ color: "#c1121f" }}>{formError}</p>}
+
+<hr />
+<h3>{t("openDisputeSection")}</h3>
+<input placeholder={t("escrowPlaceholder")} value={escrowAddrForDispute} onChange={(e) => setEscrowAddrForDispute(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<button onClick={onOpenDispute} disabled={isPending || isWrongChain}>{isPending ? t("sending") : t("openDisputeButton")}</button>
+
+<hr />
+<h3>{t("voteSection")}</h3>
+<input placeholder={t("disputeIdPlaceholder")} value={voteDisputeId} onChange={(e) => setVoteDisputeId(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<input placeholder={t("sellerBpsPlaceholder")} value={sellerBps} onChange={(e) => setSellerBps(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<button onClick={onVote} disabled={isPending || isWrongChain}>{isPending ? t("sending") : t("voteButton")}</button>
+
+<hr />
+<h3>{t("querySection")}</h3>
+<input placeholder={t("disputeIdPlaceholder")} value={disputeId} onChange={(e) => setDisputeId(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<button onClick={() => disputeInfo.refetch()}>{t("refreshDispute")}</button>
+<pre style={{ background: "#f6f6f6", padding: 12, borderRadius: 8, overflow: "auto" }}>
+{JSON.stringify(disputeSummary, null, 2)}
+</pre>
+
+{txHash && <p>{t("txLabel")}{txHash}</p>}
+{txHash && <p>{t("txStatusLabel")}{txReceipt.isLoading ? t("txPending") : txReceipt.isSuccess ? t("txSuccess") : txReceipt.isError ? t("txError") : t("txIdle")}</p>}
 </main>
 );
 }

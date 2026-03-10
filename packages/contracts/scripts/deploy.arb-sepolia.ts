@@ -1,10 +1,6 @@
-import { deployAll } from "./deploy.common";
+import { deployAndSave } from "./deploy-and-save";
 
-async function main() {
-  await deployAll();
-}
-
-main().catch((e) => {
+deployAndSave("arbSepolia").catch((e) => {
   console.error(e);
   process.exit(1);
 });

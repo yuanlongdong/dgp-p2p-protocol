@@ -1,13 +1,19 @@
 {
   "name": "@dgp/telegram-bot",
-  "version": "0.1.0",
   "private": true,
-  "type": "module",
+  "version": "0.1.0",
   "scripts": {
-    "start": "node src/index.mjs",
-    "build": "node -e \"console.log('telegram-bot build: noop')\""
+    "start": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
-    "telegraf": "^4.16.3"
+    "dotenv": "^16.6.1",
+    "telegraf": "^4.16.3",
+    "viem": "^2.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
   }
 }

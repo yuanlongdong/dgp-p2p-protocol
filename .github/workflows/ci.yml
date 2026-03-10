@@ -3,75 +3,52 @@ name: ci
 on:
   pull_request:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  build-test:
+  takeover-check:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Enable corepack
-        run: corepack enable
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Contracts tests
-        run: pnpm test:contracts
-      - name: Build workspaces
-        run: pnpm build
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  demo-e2e-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Enable corepack
-        run: corepack enable
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Prepare mock deployment file
-        run: |
-          mkdir -p packages/contracts/deployments
-          cat > packages/contracts/deployments/arbSepolia.json << 'EOF'
-          {
-            "network": "arbSepolia",
-            "escrowFactory": "0x1111111111111111111111111111111111111111",
-            "disputeModule": "0x2222222222222222222222222222222222222222",
-            "complianceRegistry": "0x3333333333333333333333333333333333333333",
-            "dgpGovernor": "0x4444444444444444444444444444444444444444"
-          }
-          EOF
-      - name: Run demo e2e pipeline (skip ui build)
-        run: pnpm demo:e2e:arb -- "https://example.com/subgraph" --skip-ui-build
-      - name: Verify generated env files
-        run: |
-          test -f apps/web/.env.local
-          test -f apps/miniapp/.env.local
-          grep -q "^VITE_ESCROW_FACTORY=" apps/web/.env.local
-          grep -q "^VITE_DGP_GOVERNOR=" apps/web/.env.local
-          grep -q "^VITE_COMPLIANCE_REGISTRY=" apps/miniapp/.env.local
 
-  security-baseline:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Enable corepack
-        run: corepack enable
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: npm audit (high+critical)
-        run: npm audit --audit-level=high || true
-      - name: Secret scan baseline
+      - name: Setup pnpm via corepack
         run: |
-          if grep -RInE "ghp_[A-Za-z0-9]{20,}" . --exclude-dir=node_modules; then
-            echo "Potential GitHub token leaked"
-            exit 1
+          corepack enable
+          corepack prepare pnpm@9.0.0 --activate
+          pnpm --version
+
+      - name: Get pnpm store path
+        id: pnpm-cache
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: |
+          if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+          else
+            pnpm install --no-frozen-lockfile
           fi
+
+      - name: Takeover check
+        run: pnpm ops:takeover:check
+
+      - name: Security baseline checklist
+        run: pnpm security:baseline
+
+      - name: Healthcheck (arb)
+        run: pnpm ops:healthcheck:arb

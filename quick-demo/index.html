@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DGP-P2P 快速演示</title>
+<style>
+body{font-family:sans-serif;max-width:760px;margin:24px auto;line-height:1.6}
+.card{border:1px solid #ddd;border-radius:10px;padding:12px;margin:12px 0}
+input{width:100%;padding:8px;margin:6px 0}
+button{padding:8px 12px}
+</style>
+</head>
+<body>
+<h1>DGP-P2P Demo（静态演示版）</h1>
+<div class="card">
+<h3>1) 创建 Escrow（演示）</h3>
+<input placeholder="卖家地址" />
+<input placeholder="代币地址" />
+<input placeholder="数量" />
+<button onclick="alert('这里是 createEscrow 交互位（下一步接链上调用）')">创建 Escrow</button>
+</div>
+
+<div class="card">
+<h3>2) 发起争议（演示）</h3>
+<input placeholder="托管地址" />
+<button onclick="alert('这里是 openDispute 交互位（下一步接链上调用）')">发起争议</button>
+</div>
+
+<div class="card">
+<h3>3) 查询争议（演示）</h3>
+<input placeholder="争议 ID" />
+<button onclick="alert('这里是 getDispute 查询位（下一步接链上读取）')">查询</button>
+</div>
+</body>
+</html>

@@ -1,58 +1,42 @@
-import fs from "fs";
-import path from "path";
+#!/usr/bin/env node
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import path from "node:path";
 
-const args = process.argv.slice(2).filter((v) => v !== "--");
-const network = args[0] || "arbSepolia";
-const subgraphUrl = args[1] || "";
+const network = process.argv[2] || "arbSepolia";
+const chainIdByNetwork = { arbSepolia: 421614, opSepolia: 11155420 };
 
 const root = process.cwd();
 const deploymentPath = path.join(root, "packages", "contracts", "deployments", `${network}.json`);
-const webEnvPath = path.join(root, "apps", "web", ".env.local");
-const miniEnvPath = path.join(root, "apps", "miniapp", ".env.local");
+const envPath = path.join(root, "apps", "web", ".env.demo");
 
-function fail(message) {
-  console.error(`[prepare-demo-env] ${message}`);
+if (!existsSync(deploymentPath)) {
+  console.error(`[prepare-demo-env] deployment file not found: ${deploymentPath}`);
   process.exit(1);
 }
 
-if (!fs.existsSync(deploymentPath)) {
-  fail(`deployment not found: ${deploymentPath}`);
+let deployment;
+try { deployment = JSON.parse(readFileSync(deploymentPath, "utf8")); }
+catch (err) { console.error(`[prepare-demo-env] invalid deployment json: ${String(err)}`); process.exit(1); }
+
+const contracts = deployment.contracts || {};
+if (!contracts.escrowFactory || !contracts.disputeModule) {
+  console.error("[prepare-demo-env] deployment json missing required contracts fields");
+  process.exit(1);
 }
 
-const deployment = JSON.parse(fs.readFileSync(deploymentPath, "utf8"));
-const requiredKeys = [
-  "escrowFactory",
-  "disputeModule",
-  "complianceRegistry",
-  "dgpGovernor"
-];
-
-for (const key of requiredKeys) {
-  if (!deployment[key] || typeof deployment[key] !== "string") {
-    fail(`missing required key in deployment json: ${key}`);
-  }
+const chainId = Number(deployment.chainId || chainIdByNetwork[network] || 0);
+if (!Number.isInteger(chainId) || chainId <= 0) {
+  console.error("[prepare-demo-env] invalid chainId");
+  process.exit(1);
 }
 
-const webLines = [
-  `VITE_ESCROW_FACTORY=${deployment.escrowFactory}`,
-  `VITE_DISPUTE_MODULE=${deployment.disputeModule}`,
-  `VITE_DGP_GOVERNOR=${deployment.dgpGovernor}`,
-  `VITE_SUBGRAPH_URL=${subgraphUrl}`
-];
+mkdirSync(path.dirname(envPath), { recursive: true });
+const body = [
+  `VITE_CHAIN_ID=${chainId}`,
+  "VITE_RPC_URL=",
+  `VITE_ESCROW_FACTORY=${contracts.escrowFactory}`,
+  `VITE_DISPUTE_MODULE=${contracts.disputeModule}`
+].join("\n");
 
-const miniLines = [
-  `VITE_ESCROW_FACTORY=${deployment.escrowFactory}`,
-  `VITE_DGP_GOVERNOR=${deployment.dgpGovernor}`,
-  `VITE_COMPLIANCE_REGISTRY=${deployment.complianceRegistry}`
-];
-
-fs.writeFileSync(webEnvPath, `${webLines.join("\n")}\n`);
-fs.writeFileSync(miniEnvPath, `${miniLines.join("\n")}\n`);
-
-console.log(`[prepare-demo-env] network=${network}`);
-console.log(`[prepare-demo-env] deployment=${deploymentPath}`);
-console.log(`[prepare-demo-env] wrote ${webEnvPath}`);
-console.log(`[prepare-demo-env] wrote ${miniEnvPath}`);
-if (!subgraphUrl) {
-  console.log("[prepare-demo-env] VITE_SUBGRAPH_URL is empty, set it before querying history.");
-}
+writeFileSync(envPath, `${body}\n`);
+console.log(`[prepare-demo-env] wrote ${envPath}`);

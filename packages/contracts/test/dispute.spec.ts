@@ -128,6 +128,23 @@ await ethers.provider.send("evm_mine", []);
 await expect(dispute.resolveAfterWindow(1)).to.be.revertedWith("not-enough-votes");
 });
 
+it("should resolve after vote window when quorum is reached", async function () {
+const { buyer, seller, m1, m2, token, dispute } = await setup({ threshold: 2, quorum: 2, voteWindow: 3 });
+
+await dispute.connect(m1).vote(1, 8000);
+await dispute.connect(m2).vote(1, 6000);
+
+await ethers.provider.send("evm_increaseTime", [4]);
+await ethers.provider.send("evm_mine", []);
+
+await expect(dispute.resolveAfterWindow(1)).to.be.revertedWith("resolved");
+
+const sellerBal = await token.balanceOf(seller.address);
+const buyerBal = await token.balanceOf(buyer.address);
+expect(sellerBal).to.equal(ethers.parseUnits("70", 18));
+expect(buyerBal).to.equal(ethers.parseUnits("30", 18));
+});
+
 it("should block mediator votes when registry is paused", async function () {
 const [owner, buyer, seller, m1, m2] = await ethers.getSigners();
 

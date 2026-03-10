@@ -20,6 +20,7 @@ event EscrowCreated(uint256 indexed escrowId, address indexed buyer, address ind
 event CollateralConfigUpdated(address indexed vault, uint16 minCollateralBps);
 event ComplianceConfigUpdated(address indexed registry, bool enforceCompliance);
 event RiskConfigUpdated(address indexed guard, bool enforceRiskGuard);
+event MaxEscrowAmountUpdated(uint256 maxEscrowAmount);
 
 uint256 public nextEscrowId;
 mapping(uint256 => address) public escrows;
@@ -30,6 +31,7 @@ address public complianceRegistry;
 bool public enforceCompliance;
 address public riskGuard;
 bool public enforceRiskGuard;
+uint256 public maxEscrowAmount = 500e18;
 
 constructor(address _disputeModule) Ownable(msg.sender) {
 disputeModule = _disputeModule;
@@ -60,6 +62,12 @@ function setRiskConfig(address guard, bool enforce) external onlyOwner {
 riskGuard = guard;
 enforceRiskGuard = enforce;
 emit RiskConfigUpdated(guard, enforce);
+}
+
+function setMaxEscrowAmount(uint256 maxAmount) external onlyOwner {
+require(maxAmount > 0, "max=0");
+maxEscrowAmount = maxAmount;
+emit MaxEscrowAmountUpdated(maxAmount);
 }
 
 function createEscrow(
@@ -121,6 +129,7 @@ string memory evidenceCID
 require(!paused(), "factory-paused");
 require(seller != address(0), "seller=0");
 require(amount > 0, "amount=0");
+require(amount <= maxEscrowAmount, "amount too large");
 require(timeoutAt > block.timestamp, "bad-timeout");
 _checkCompliance(buyer);
 _checkCompliance(seller);
