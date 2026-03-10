@@ -13,9 +13,14 @@ import { auditLog } from "./services/audit-log";
 import { startTelegramAuthServer } from "./services/telegram-auth";
 
 function requiredEnv(name: string): string {
-  const value = process.env[name];
+  const value = process.env[name]?.trim();
   if (!value) throw new Error(`${name} is required`);
   return value;
+}
+
+function optionalEnv(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value ? value : undefined;
 }
 
 const botToken = requiredEnv("BOT_TOKEN");
@@ -28,9 +33,18 @@ const network = (process.env.DGP_NETWORK || "arbSepolia") as SupportedNetwork;
 const authServerPort = Number(process.env.AUTH_SERVER_PORT || "8787");
 
 const bot = new Telegraf(botToken);
-const dealStorePath = process.env.DEAL_STORE_PATH?.trim() || undefined;
+const dealStorePath = optionalEnv("DEAL_STORE_PATH");
 const escrow = new EscrowService(dealStorePath);
 const deps = { escrow, miniAppBaseUrl, botUsername, deepLinkSecret };
+
+bot.catch((err, ctx) => {
+  const error = err instanceof Error ? err : new Error(String(err));
+  auditLog("botUpdateError", {
+    updateType: ctx.updateType,
+    errorName: error.name,
+    errorMessage: error.message,
+  });
+});
 
 registerHelp(bot, { officialFactory: escrowFactory });
 registerDeal(bot, deps);
@@ -41,17 +55,17 @@ registerStatus(bot, deps);
 
 startEventRelay(bot, {
   network,
-  rpcUrl: process.env.RPC_URL,
-  announceChatId: process.env.TELEGRAM_ANNOUNCE_CHAT_ID,
+  rpcUrl: optionalEnv("RPC_URL"),
+  announceChatId: optionalEnv("TELEGRAM_ANNOUNCE_CHAT_ID"),
   escrowFactory,
   disputeModule,
-  escrow
+  escrow,
 });
 
 if (Number.isFinite(authServerPort) && authServerPort > 0) {
   startTelegramAuthServer({
     botToken,
-    port: authServerPort
+    port: authServerPort,
   });
 }
 
@@ -60,7 +74,7 @@ bot.launch().then(() => {
     network,
     miniAppBaseUrl,
     escrowFactory,
-    disputeModule
+    disputeModule,
   });
 });
 
