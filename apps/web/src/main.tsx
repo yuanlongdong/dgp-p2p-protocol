@@ -9,6 +9,135 @@ useAccount, useChainId, useConnect, useDisconnect, useReadContract, useSwitchCha
 import { arbitrumSepolia } from "wagmi/chains";
 import { injected } from "wagmi/connectors";
 
+type Locale = "zh-CN" | "en";
+
+const translations: Record<Locale, Record<string, string>> = {
+  "zh-CN": {
+    appTitle: "DGP-P2P Web（阶段 9）",
+    walletLabel: "钱包：",
+    walletConnected: "已连接 {address}",
+    walletDisconnected: "未连接",
+    networkLabel: "网络：",
+    networkUnknown: "-",
+    networkRightSuffix: "（正确）",
+    networkWrongSuffix: "（错误链）",
+    connectWallet: "连接钱包",
+    connecting: "连接中...",
+    disconnectWallet: "断开钱包",
+    switchChain: "切换到 Arbitrum Sepolia",
+    switching: "切链中...",
+    wrongChainWarning: "当前链不正确，已阻止交易操作。",
+    factoryLabel: "工厂合约：",
+    disputeLabel: "争议合约：",
+    nextEscrowIdLabel: "下一个 EscrowId：",
+    notSet: "未配置",
+    loading: "读取中...",
+    createSection: "创建 Escrow",
+    sellerPlaceholder: "卖家地址 0x...",
+    tokenPlaceholder: "代币地址 0x...",
+    amountPlaceholder: "数量",
+    timeoutPlaceholder: "截止时间（Unix）",
+    cidPlaceholder: "证据 CID",
+    createButton: "创建托管",
+    sending: "发送中...",
+    openDisputeSection: "发起争议",
+    escrowPlaceholder: "托管地址 0x...",
+    openDisputeButton: "发起争议",
+    voteSection: "争议投票",
+    disputeIdPlaceholder: "争议 ID",
+    sellerBpsPlaceholder: "卖家比例 BPS（0~10000）",
+    voteButton: "提交投票",
+    querySection: "查询争议",
+    refreshDispute: "刷新争议状态",
+    txLabel: "交易：",
+    txStatusLabel: "交易状态：",
+    txPending: "确认中...",
+    txSuccess: "已上链",
+    txError: "失败",
+    txIdle: "等待提交",
+    resolved: "已裁决",
+    resolving: "处理中",
+    alertNeedFactory: "请先配置 VITE_ESCROW_FACTORY",
+    alertNeedDispute: "请先配置 VITE_DISPUTE_MODULE",
+    alertNeedWallet: "请先连接钱包",
+    alertWrongChain: "当前网络错误，请切换到 Arbitrum Sepolia",
+    errorInvalidSeller: "卖家地址无效",
+    errorInvalidToken: "代币地址无效",
+    errorInvalidAmount: "数量必须是大于 0 的整数",
+    errorInvalidTimeout: "截止时间必须晚于当前时间",
+    errorInvalidCid: "证据 CID 不能为空",
+    errorInvalidSellerBps: "卖家比例必须在 0~10000"
+  },
+  en: {
+    appTitle: "DGP-P2P Web (Phase 9)",
+    walletLabel: "Wallet: ",
+    walletConnected: "Connected {address}",
+    walletDisconnected: "Disconnected",
+    networkLabel: "Network: ",
+    networkUnknown: "-",
+    networkRightSuffix: " (ok)",
+    networkWrongSuffix: " (wrong)",
+    connectWallet: "Connect Wallet",
+    connecting: "Connecting...",
+    disconnectWallet: "Disconnect",
+    switchChain: "Switch to Arbitrum Sepolia",
+    switching: "Switching...",
+    wrongChainWarning: "Wrong network. Transactions are blocked.",
+    factoryLabel: "Factory: ",
+    disputeLabel: "Dispute: ",
+    nextEscrowIdLabel: "nextEscrowId: ",
+    notSet: "NOT_SET",
+    loading: "Loading...",
+    createSection: "Create Escrow",
+    sellerPlaceholder: "seller 0x...",
+    tokenPlaceholder: "token 0x...",
+    amountPlaceholder: "amount",
+    timeoutPlaceholder: "timeoutAt (Unix)",
+    cidPlaceholder: "evidence CID",
+    createButton: "Create Escrow",
+    sending: "Sending...",
+    openDisputeSection: "Open Dispute",
+    escrowPlaceholder: "escrow address 0x...",
+    openDisputeButton: "Open Dispute",
+    voteSection: "Vote Dispute",
+    disputeIdPlaceholder: "disputeId",
+    sellerBpsPlaceholder: "sellerBps (0~10000)",
+    voteButton: "Submit Vote",
+    querySection: "Query Dispute",
+    refreshDispute: "Refresh",
+    txLabel: "Tx: ",
+    txStatusLabel: "Tx Status: ",
+    txPending: "Confirming...",
+    txSuccess: "Confirmed",
+    txError: "Failed",
+    txIdle: "Waiting",
+    resolved: "Resolved",
+    resolving: "Pending",
+    alertNeedFactory: "Please set VITE_ESCROW_FACTORY first.",
+    alertNeedDispute: "Please set VITE_DISPUTE_MODULE first.",
+    alertNeedWallet: "Please connect your wallet first.",
+    alertWrongChain: "Wrong network. Please switch to Arbitrum Sepolia.",
+    errorInvalidSeller: "Invalid seller address.",
+    errorInvalidToken: "Invalid token address.",
+    errorInvalidAmount: "Amount must be a positive integer.",
+    errorInvalidTimeout: "timeoutAt must be later than now.",
+    errorInvalidCid: "Evidence CID is required.",
+    errorInvalidSellerBps: "sellerBps must be between 0 and 10000."
+  }
+};
+
+const resolveLocale = (): Locale => {
+  const envLang = (import.meta as any).env?.VITE_LANG as string | undefined;
+  const raw = (envLang || "zh-CN").toLowerCase();
+  return raw.startsWith("en") ? "en" : "zh-CN";
+};
+
+const t = (key: string, params: Record<string, string | number> = {}) => {
+  const locale = resolveLocale();
+  const template = translations[locale][key] ?? translations["zh-CN"][key] ?? key;
+  return template.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ""));
+};
+
 const queryClient = new QueryClient();
 const config = createConfig({
 chains: [arbitrumSepolia],
@@ -121,18 +250,18 @@ return null;
 };
 
 async function onCreate() {
-if (!factory) return alert("请先配置 VITE_ESCROW_FACTORY");
-if (!isConnected) return alert("请先连接钱包");
-if (isWrongChain) return alert("当前网络错误，请切换到 Arbitrum Sepolia");
+if (!factory) return alert(t("alertNeedFactory"));
+if (!isConnected) return alert(t("alertNeedWallet"));
+if (isWrongChain) return alert(t("alertWrongChain"));
 const parsedAmount = parseUint(amount);
 const parsedTimeout = parseUint(timeoutAt);
-if (!isAddress(seller)) return setFormError("seller 地址无效");
-if (!isAddress(token)) return setFormError("token 地址无效");
-if (parsedAmount === null || parsedAmount <= 0n) return setFormError("amount 必须是大于 0 的整数");
+if (!isAddress(seller)) return setFormError(t("errorInvalidSeller"));
+if (!isAddress(token)) return setFormError(t("errorInvalidToken"));
+if (parsedAmount === null || parsedAmount <= 0n) return setFormError(t("errorInvalidAmount"));
 if (parsedTimeout === null || parsedTimeout <= BigInt(Math.floor(Date.now() / 1000))) {
-return setFormError("timeoutAt 必须晚于当前时间");
+return setFormError(t("errorInvalidTimeout"));
 }
-if (!cid.trim()) return setFormError("evidence CID 不能为空");
+if (!cid.trim()) return setFormError(t("errorInvalidCid"));
 setFormError("");
 const hash = await writeContractAsync({
 address: factory as `0x${string}`,
@@ -145,9 +274,9 @@ setTimeout(() => nextEscrow.refetch(), 3000);
 }
 
 async function onOpenDispute() {
-if (!dispute) return alert("请先配置 VITE_DISPUTE_MODULE");
-if (!isConnected) return alert("请先连接钱包");
-if (isWrongChain) return alert("当前网络错误，请切换到 Arbitrum Sepolia");
+if (!dispute) return alert(t("alertNeedDispute"));
+if (!isConnected) return alert(t("alertNeedWallet"));
+if (isWrongChain) return alert(t("alertWrongChain"));
 const hash = await writeContractAsync({
 address: dispute as `0x${string}`,
 abi: disputeAbi,
@@ -159,12 +288,12 @@ setTimeout(() => disputeInfo.refetch(), 3000);
 }
 
 async function onVote() {
-if (!dispute) return alert("请先配置 VITE_DISPUTE_MODULE");
-if (!isConnected) return alert("请先连接钱包");
-if (isWrongChain) return alert("当前网络错误，请切换到 Arbitrum Sepolia");
+if (!dispute) return alert(t("alertNeedDispute"));
+if (!isConnected) return alert(t("alertNeedWallet"));
+if (isWrongChain) return alert(t("alertWrongChain"));
 const voteBps = Number(sellerBps);
 if (Number.isNaN(voteBps) || voteBps < 0 || voteBps > 10000) {
-return alert("sellerBps 必须在 0~10000");
+return alert(t("errorInvalidSellerBps"));
 }
 const hash = await writeContractAsync({
 address: dispute as `0x${string}`,
@@ -180,7 +309,7 @@ setTimeout(() => disputeInfo.refetch(), 3000);
 const disputeSummary = disputeInfo.data
 ? {
 escrow: disputeInfo.data[0],
-resolved: disputeInfo.data[1] ? "已裁决" : "处理中",
+resolved: disputeInfo.data[1] ? t("resolved") : t("resolving"),
 sellerBps: Number(disputeInfo.data[2]),
 votes: Number(disputeInfo.data[3])
 }
@@ -204,16 +333,16 @@ parsedTimeout <= BigInt(Math.floor(Date.now() / 1000)) ||
 
 return (
 <main style={{ maxWidth: 860, margin: "24px auto", fontFamily: "sans-serif", lineHeight: 1.5 }}>
-<h1>DGP-P2P Web (Phase 9)</h1>
-<p>钱包：{isConnected ? `已连接 ${address}` : "未连接"}</p>
-<p>网络：{isConnected ? `${chainId}${isWrongChain ? " (错误链)" : " (正确)"}` : "-"}</p>
+<h1>{t("appTitle")}</h1>
+<p>{t("walletLabel")}{isConnected ? t("walletConnected", { address: address || "" }) : t("walletDisconnected")}</p>
+<p>{t("networkLabel")}{isConnected ? `${chainId}${isWrongChain ? t("networkWrongSuffix") : t("networkRightSuffix")}` : t("networkUnknown")}</p>
 <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
 {!isConnected ? (
 <button onClick={() => connect({ connector: injected() })} disabled={isConnectPending}>
-{isConnectPending ? "连接中..." : "连接钱包"}
+{isConnectPending ? t("connecting") : t("connectWallet")}
 </button>
 ) : (
-<button onClick={() => disconnect()}>断开钱包</button>
+<button onClick={() => disconnect()}>{t("disconnectWallet")}</button>
 )}
 {isWrongChain && (
 <button
@@ -222,46 +351,46 @@ await switchChainAsync({ chainId: targetChainId });
 }}
 disabled={isSwitchPending}
 >
-{isSwitchPending ? "切链中..." : "切到 Arbitrum Sepolia"}
+{isSwitchPending ? t("switching") : t("switchChain")}
 </button>
 )}
 </div>
-{isWrongChain && <p style={{ color: "#c1121f" }}>当前链不正确，已阻止交易操作。</p>}
-<p>Factory: {factory || "未配置"}</p>
-<p>Dispute: {dispute || "未配置"}</p>
-<p>nextEscrowId: {nextEscrow.isLoading ? "读取中..." : String(nextEscrow.data ?? "-")}</p>
+{isWrongChain && <p style={{ color: "#c1121f" }}>{t("wrongChainWarning")}</p>}
+<p>{t("factoryLabel")}{factory || t("notSet")}</p>
+<p>{t("disputeLabel")}{dispute || t("notSet")}</p>
+<p>{t("nextEscrowIdLabel")}{nextEscrow.isLoading ? t("loading") : String(nextEscrow.data ?? "-")}</p>
 
 <hr />
-<h3>Create Escrow</h3>
-<input placeholder="seller 0x..." value={seller} onChange={(e) => setSeller(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<input placeholder="token 0x..." value={token} onChange={(e) => setToken(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<input placeholder="amount" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<input placeholder="timeoutAt(unix)" value={timeoutAt} onChange={(e) => setTimeoutAt(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<input placeholder="evidence CID" value={cid} onChange={(e) => setCid(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<button onClick={onCreate} disabled={createDisabled}>{isPending ? "发送中..." : "创建 Escrow"}</button>
+<h3>{t("createSection")}</h3>
+<input placeholder={t("sellerPlaceholder")} value={seller} onChange={(e) => setSeller(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<input placeholder={t("tokenPlaceholder")} value={token} onChange={(e) => setToken(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<input placeholder={t("amountPlaceholder")} value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<input placeholder={t("timeoutPlaceholder")} value={timeoutAt} onChange={(e) => setTimeoutAt(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<input placeholder={t("cidPlaceholder")} value={cid} onChange={(e) => setCid(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<button onClick={onCreate} disabled={createDisabled}>{isPending ? t("sending") : t("createButton")}</button>
 {formError && <p style={{ color: "#c1121f" }}>{formError}</p>}
 
 <hr />
-<h3>Open Dispute</h3>
-<input placeholder="escrow address 0x..." value={escrowAddrForDispute} onChange={(e) => setEscrowAddrForDispute(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<button onClick={onOpenDispute} disabled={isPending || isWrongChain}>{isPending ? "发送中..." : "发起争议"}</button>
+<h3>{t("openDisputeSection")}</h3>
+<input placeholder={t("escrowPlaceholder")} value={escrowAddrForDispute} onChange={(e) => setEscrowAddrForDispute(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<button onClick={onOpenDispute} disabled={isPending || isWrongChain}>{isPending ? t("sending") : t("openDisputeButton")}</button>
 
 <hr />
-<h3>Vote Dispute</h3>
-<input placeholder="disputeId" value={voteDisputeId} onChange={(e) => setVoteDisputeId(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<input placeholder="sellerBps (0~10000)" value={sellerBps} onChange={(e) => setSellerBps(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<button onClick={onVote} disabled={isPending || isWrongChain}>{isPending ? "发送中..." : "提交投票"}</button>
+<h3>{t("voteSection")}</h3>
+<input placeholder={t("disputeIdPlaceholder")} value={voteDisputeId} onChange={(e) => setVoteDisputeId(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<input placeholder={t("sellerBpsPlaceholder")} value={sellerBps} onChange={(e) => setSellerBps(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<button onClick={onVote} disabled={isPending || isWrongChain}>{isPending ? t("sending") : t("voteButton")}</button>
 
 <hr />
-<h3>Query Dispute</h3>
-<input placeholder="disputeId" value={disputeId} onChange={(e) => setDisputeId(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
-<button onClick={() => disputeInfo.refetch()}>刷新争议状态</button>
+<h3>{t("querySection")}</h3>
+<input placeholder={t("disputeIdPlaceholder")} value={disputeId} onChange={(e) => setDisputeId(e.target.value)} style={{ width: "100%", marginBottom: 8 }} />
+<button onClick={() => disputeInfo.refetch()}>{t("refreshDispute")}</button>
 <pre style={{ background: "#f6f6f6", padding: 12, borderRadius: 8, overflow: "auto" }}>
 {JSON.stringify(disputeSummary, null, 2)}
 </pre>
 
-{txHash && <p>Tx: {txHash}</p>}
-{txHash && <p>Tx Status: {txReceipt.isLoading ? "确认中..." : txReceipt.isSuccess ? "已上链" : txReceipt.isError ? "失败" : "等待提交"}</p>}
+{txHash && <p>{t("txLabel")}{txHash}</p>}
+{txHash && <p>{t("txStatusLabel")}{txReceipt.isLoading ? t("txPending") : txReceipt.isSuccess ? t("txSuccess") : txReceipt.isError ? t("txError") : t("txIdle")}</p>}
 </main>
 );
 }

@@ -1,13 +1,15 @@
 import { Markup, Telegraf } from "telegraf";
 import { buildMiniAppUrl, CommandDeps, formatDealCard } from "./types";
 import { auditLog } from "../services/audit-log";
+import { createT } from "../i18n";
 
 export function registerDeal(bot: Telegraf, deps: CommandDeps) {
   bot.command("deal", async (ctx) => {
+    const t = createT();
     const text = "text" in ctx.message ? ctx.message.text : "";
     const parts = text.trim().split(/\s+/);
     if (parts.length < 4) {
-      await ctx.reply("Usage: /deal @seller amount token");
+      await ctx.reply(t("usage.deal"));
       return;
     }
 
@@ -16,12 +18,12 @@ export function registerDeal(bot: Telegraf, deps: CommandDeps) {
     const token = parts[3].toUpperCase();
     const buyer = ctx.from?.username;
     if (!buyer) {
-      await ctx.reply("Buyer username required. Please set Telegram username.");
+      await ctx.reply(t("error.buyerUsernameRequired"));
       return;
     }
 
     if (!/^\d+(\.\d+)?$/.test(amount)) {
-      await ctx.reply("Invalid amount.");
+      await ctx.reply(t("error.invalidAmount"));
       return;
     }
 
@@ -51,8 +53,8 @@ export function registerDeal(bot: Telegraf, deps: CommandDeps) {
         amount,
         token,
         status: deal.status
-      })}\n\nFunds secured by smart contract.\nAdmin cannot access funds.\nOpen secure escrow:`,
-      Markup.inlineKeyboard([Markup.button.url("Open Escrow", openUrl)])
+      }, t)}\n\n${t("deal.fundsSecured")}`,
+      Markup.inlineKeyboard([Markup.button.url(t("deal.openEscrow"), openUrl)])
     );
   });
 }

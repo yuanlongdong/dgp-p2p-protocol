@@ -1,37 +1,39 @@
 import { Markup, Telegraf } from "telegraf";
 import { buildMiniAppUrl, CommandDeps } from "./types";
 import { auditLog } from "../services/audit-log";
+import { createT } from "../i18n";
 
 export function registerDispute(bot: Telegraf, deps: CommandDeps) {
   bot.command("dispute", async (ctx) => {
+    const t = createT();
     const text = "text" in ctx.message ? ctx.message.text : "";
     const parts = text.trim().split(/\s+/);
     const dealId = Number(parts[1]);
     if (!Number.isInteger(dealId) || dealId <= 0) {
-      await ctx.reply("Usage: /dispute <dealId>");
+      await ctx.reply(t("usage.dispute"));
       return;
     }
 
     const deal = deps.escrow.getDeal(dealId);
     if (!deal) {
-      await ctx.reply("Deal not found.");
+      await ctx.reply(t("error.dealNotFound"));
       return;
     }
     const actor = ctx.from?.username;
     if (!actor || (actor !== deal.buyerUsername && actor !== deal.sellerUsername)) {
-      await ctx.reply("Only buyer or seller can run /dispute.");
+      await ctx.reply(t("error.onlyBuyerOrSeller"));
       return;
     }
 
     deps.escrow.setStatus(deal.id, "DISPUTED");
     const disputeUrl = buildMiniAppUrl(deps, { dealId: deal.id, action: "dispute" });
     await ctx.reply(
-      `⚠️ Dispute opened\nDeal #${deal.id}\nVoting window: 24h`,
+      t("dispute.opened", { dealId: deal.id }),
       Markup.inlineKeyboard([
-        [Markup.button.url("Open Dispute", disputeUrl)],
+        [Markup.button.url(t("dispute.button.open"), disputeUrl)],
         [
-          Markup.button.callback("Vote Buyer", `vote:${deal.id}:buyer`),
-          Markup.button.callback("Vote Seller", `vote:${deal.id}:seller`)
+          Markup.button.callback(t("dispute.vote.buyer"), `vote:${deal.id}:buyer`),
+          Markup.button.callback(t("dispute.vote.seller"), `vote:${deal.id}:seller`)
         ]
       ])
     );
@@ -39,16 +41,18 @@ export function registerDispute(bot: Telegraf, deps: CommandDeps) {
   });
 
   bot.action(/^vote:(\d+):(buyer|seller)$/, async (ctx) => {
+    const t = createT();
     const dealId = Number(ctx.match[1]);
     const side = ctx.match[2];
+    const sideLabel = side === "buyer" ? t("side.buyer") : t("side.seller");
     const deal = deps.escrow.getDeal(dealId);
     if (!deal) {
-      await ctx.answerCbQuery("Deal not found");
+      await ctx.answerCbQuery(t("error.dealNotFound"));
       return;
     }
-    await ctx.answerCbQuery(`Vote recorded for ${side}`);
+    await ctx.answerCbQuery(t("dispute.vote.recorded", { side: sideLabel }));
     await ctx.reply(
-      `Vote submitted for deal #${deal.id} (${side}).\nNext: call vote(disputeId, sellerBps) in MiniApp.`
+      t("dispute.vote.submitted", { dealId: deal.id, side: sideLabel })
     );
     auditLog("voteIntent", { dealId: deal.id, side, actor: ctx.from?.username || "unknown" });
   });

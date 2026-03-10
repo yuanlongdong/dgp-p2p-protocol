@@ -31,21 +31,24 @@ export function buildMiniAppUrl(deps: CommandDeps, params: {
   return `${deps.miniAppBaseUrl}?${search.toString()}`;
 }
 
-export function formatDealCard(input: {
+export function formatDealCard(
+  input: {
   id: number;
   buyer: string;
   seller: string;
   amount: string;
   token: string;
   status: string;
-}) {
+  },
+  t: (key: string, params?: Record<string, string | number>) => string
+) {
   return [
-    "━━━━━━━━━━ ESCROW DEAL ━━━━━━━━━━",
-    `Deal: #${input.id}`,
-    `Buyer: @${input.buyer}`,
-    `Seller: @${input.seller}`,
-    `Amount: ${input.amount} ${input.token}`,
-    `Status: ${input.status}`,
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    t("card.title"),
+    t("card.deal", { id: input.id }),
+    t("card.buyer", { buyer: input.buyer }),
+    t("card.seller", { seller: input.seller }),
+    t("card.amount", { amount: input.amount, token: input.token }),
+    t("card.status", { status: input.status }),
+    t("card.footer")
   ].join("\n");
 }

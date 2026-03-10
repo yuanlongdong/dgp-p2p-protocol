@@ -1,25 +1,27 @@
 import { Markup, Telegraf } from "telegraf";
 import { buildMiniAppUrl, CommandDeps } from "./types";
 import { auditLog } from "../services/audit-log";
+import { createT } from "../i18n";
 
 export function registerPay(bot: Telegraf, deps: CommandDeps) {
   bot.command("pay", async (ctx) => {
+    const t = createT();
     const text = "text" in ctx.message ? ctx.message.text : "";
     const parts = text.trim().split(/\s+/);
     const dealId = Number(parts[1]);
     if (!Number.isInteger(dealId) || dealId <= 0) {
-      await ctx.reply("Usage: /pay <dealId> [escrowId]");
+      await ctx.reply(t("usage.pay"));
       return;
     }
 
     const deal = deps.escrow.getDeal(dealId);
     if (!deal) {
-      await ctx.reply("Deal not found.");
+      await ctx.reply(t("error.dealNotFound"));
       return;
     }
     const actor = ctx.from?.username;
     if (!actor || actor !== deal.buyerUsername) {
-      await ctx.reply("Only buyer can run /pay.");
+      await ctx.reply(t("error.onlyBuyer", { cmd: "/pay" }));
       return;
     }
 
@@ -30,9 +32,12 @@ export function registerPay(bot: Telegraf, deps: CommandDeps) {
     }
 
     const openUrl = buildMiniAppUrl(deps, { dealId: deal.id, action: "pay" });
+    const binding = deal.contractEscrowId
+      ? t("pay.binding.bound", { escrowId: deal.contractEscrowId })
+      : t("pay.binding.tip");
     await ctx.reply(
-      `Deal #${deal.id}\nAmount: ${deal.amount} ${deal.token}\nAction: fundEscrow()\n${deal.contractEscrowId ? `Bound EscrowId: ${deal.contractEscrowId}` : "Tip: use /pay <dealId> <escrowId> to bind mapping."}`,
-      Markup.inlineKeyboard([Markup.button.url("Pay Escrow", openUrl)])
+      t("pay.title", { dealId: deal.id, amount: deal.amount, token: deal.token, binding }),
+      Markup.inlineKeyboard([Markup.button.url(t("pay.button"), openUrl)])
     );
     auditLog("payRequested", { dealId: deal.id, actor });
   });
