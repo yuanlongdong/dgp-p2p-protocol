@@ -6,6 +6,7 @@ export function registerHelp(bot: Telegraf, opts?: { officialFactory?: string })
     `Official contract address: ${opts?.officialFactory || "NOT_SET"}`,
     "Funds secured by smart contract.",
     "Admin cannot access funds.",
+    "Offline demo mode available (no on-chain funds).",
     "",
     "Available commands:",
     "/start",
