@@ -28,7 +28,8 @@ const network = (process.env.DGP_NETWORK || "arbSepolia") as SupportedNetwork;
 const authServerPort = Number(process.env.AUTH_SERVER_PORT || "8787");
 
 const bot = new Telegraf(botToken);
-const escrow = new EscrowService(process.env.DEAL_STORE_PATH);
+const dealStorePath = process.env.DEAL_STORE_PATH?.trim() || undefined;
+const escrow = new EscrowService(dealStorePath);
 const deps = { escrow, miniAppBaseUrl, botUsername, deepLinkSecret };
 
 registerHelp(bot, { officialFactory: escrowFactory });
