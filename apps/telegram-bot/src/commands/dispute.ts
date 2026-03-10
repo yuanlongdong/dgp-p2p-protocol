@@ -20,21 +20,33 @@ export function registerDispute(bot: Telegraf, deps: CommandDeps) {
       return;
     }
     const actor = ctx.from?.username;
-    if (!actor || (actor !== deal.buyerUsername && actor !== deal.sellerUsername)) {
+    if (
+      !actor ||
+      (actor !== deal.buyerUsername && actor !== deal.sellerUsername)
+    ) {
       await ctx.reply(t("error.onlyBuyerOrSeller"));
       return;
     }
 
     deps.escrow.setStatus(deal.id, "DISPUTED");
-    const disputeUrl = buildMiniAppUrl(deps, { dealId: deal.id, action: "dispute" });
+    const disputeUrl = buildMiniAppUrl(deps, {
+      dealId: deal.id,
+      action: "dispute",
+    });
     await ctx.reply(
       t("dispute.opened", { dealId: deal.id }),
       Markup.inlineKeyboard([
         [Markup.button.url(t("dispute.button.open"), disputeUrl)],
         [
-          Markup.button.callback(t("dispute.vote.buyer"), `vote:${deal.id}:buyer`),
-          Markup.button.callback(t("dispute.vote.seller"), `vote:${deal.id}:seller`)
-        ]
+          Markup.button.callback(
+            t("dispute.vote.buyer"),
+            `vote:${deal.id}:buyer`
+          ),
+          Markup.button.callback(
+            t("dispute.vote.seller"),
+            `vote:${deal.id}:seller`
+          ),
+        ],
       ])
     );
     auditLog("disputeOpened", { dealId: deal.id, actor });
@@ -47,13 +59,41 @@ export function registerDispute(bot: Telegraf, deps: CommandDeps) {
     const sideLabel = side === "buyer" ? t("side.buyer") : t("side.seller");
     const deal = deps.escrow.getDeal(dealId);
     if (!deal) {
-      await ctx.answerCbQuery(t("error.dealNotFound"));
+      try {
+        await ctx.answerCbQuery(t("error.dealNotFound"));
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        auditLog("telegramApiError", {
+          action: "answerCbQuery",
+          command: "vote",
+          dealId,
+          errorName: err.name,
+          errorMessage: err.message,
+        });
+      }
       return;
     }
-    await ctx.answerCbQuery(t("dispute.vote.recorded", { side: sideLabel }));
-    await ctx.reply(
-      t("dispute.vote.submitted", { dealId: deal.id, side: sideLabel })
-    );
-    auditLog("voteIntent", { dealId: deal.id, side, actor: ctx.from?.username || "unknown" });
+
+    try {
+      await ctx.answerCbQuery(t("dispute.vote.recorded", { side: sideLabel }));
+      await ctx.reply(
+        t("dispute.vote.submitted", { dealId: deal.id, side: sideLabel })
+      );
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      auditLog("telegramApiError", {
+        action: "vote",
+        dealId: deal.id,
+        errorName: err.name,
+        errorMessage: err.message,
+      });
+      return;
+    }
+
+    auditLog("voteIntent", {
+      dealId: deal.id,
+      side,
+      actor: ctx.from?.username || "unknown",
+    });
   });
 }

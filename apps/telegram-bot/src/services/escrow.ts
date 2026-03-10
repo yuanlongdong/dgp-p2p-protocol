@@ -32,9 +32,15 @@ export class EscrowService {
   private disputeIdToDealId = new Map<number, number>();
   private readonly storePath: string;
 
-  constructor(storePath = path.join(process.cwd(), "apps", "telegram-bot", "data", "deals.json")) {
-    this.storePath = storePath;
+  constructor(storePath?: string) {
+    this.storePath = EscrowService.resolveStorePath(storePath);
     this.load();
+  }
+
+  private static resolveStorePath(storePath?: string): string {
+    const normalized = storePath?.trim();
+    if (normalized) return normalized;
+    return path.join(process.cwd(), "apps", "telegram-bot", "data", "deals.json");
   }
 
   private load() {
