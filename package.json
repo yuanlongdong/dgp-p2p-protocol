@@ -30,6 +30,7 @@
     "security:patch:proposal:p2p": "node scripts/security/generate-patch-proposal.mjs",
     "security:audit:summary:p2p": "node scripts/security/generate-audit-summary.mjs",
     "security:workflow:p2p": "node scripts/security/run-p2p-contract-workflow.mjs",
-    "security:coi:check": "node scripts/security/conflict-of-interest-check.mjs"
+    "security:coi:check": "node scripts/security/conflict-of-interest-check.mjs",
+    "security:coi:check:relaxed": "COI_STRICT=0 node scripts/security/conflict-of-interest-check.mjs"
   }
 }
