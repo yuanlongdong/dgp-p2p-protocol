@@ -40,7 +40,7 @@ const staticSummary = existsSync(staticPath) ? JSON.parse(readFileSync(staticPat
 
 const failed = checks.filter((c) => c.status !== 0);
 const coiFailure = checks.some((c) => c.status !== 0 && c.cmd.includes("conflict-of-interest-check.mjs"));
-const warning = checks.some((c) => c.status !== 0 && /HH502|403|download compiler version list/i.test(`${c.stdout}\n${c.stderr}`));
+const networkWarning = checks.some((c) => c.status !== 0 && /HH502|403|download compiler version list/i.test(`${c.stdout}\n${c.stderr}`));
 
 const lines = [
   "# 每周安全审计报告（自动生成）",
@@ -61,7 +61,7 @@ const lines = [
   "## 安全性评估",
   coiFailure
     ? "- 检测到利益冲突（COI）失败，已阻断流程，请先完成职责分离后再审计/发布。"
-    : warning
+    : networkWarning
       ? "- 本周测试受环境限制（编译器下载/网络限制），请在内网 runner 复跑并补传证据。"
       : failed.length === 0
         ? "- 自动化检查通过，未发现阻断上线的新问题。"
@@ -79,4 +79,4 @@ writeFileSync(out, `${lines.join("\n")}\n`);
 console.log(`[weekly-audit] report written: ${out}`);
 
 if (coiFailure) process.exit(1);
-if (failed.length > 0 && !warning) process.exit(1);
+if (failed.length > 0 && !networkWarning) process.exit(1);
