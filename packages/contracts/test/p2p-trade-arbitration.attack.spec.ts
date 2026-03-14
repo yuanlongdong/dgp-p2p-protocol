@@ -63,7 +63,8 @@ describe("P2PTradeArbitration - attack simulations", function () {
     }
 
     expect(await protocol.nextTradeId()).to.equal(30);
-    expect(await protocol.getReputation(seller.address)).to.equal(260);
+    // Seller loses 10 reputation per loop (-2 openDispute penalty and -8 dispute loss penalty): 500 - 30*10 = 200.
+    expect(await protocol.getReputation(seller.address)).to.equal(200);
   });
 
   it("boundary tests: invalid extremes are rejected", async function () {
