@@ -63,7 +63,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # conflict resolution: enforce COI gate before audit and issue creation
+      # NOTE(#28): keep COI check before weekly audit; do not switch to always() for issue creation.
       - name: Conflict-of-interest check
         env:
           SECURITY_CHANGE_AUTHOR: ${{ github.actor }}
