@@ -63,7 +63,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Conflict-of-interest check
+        env:
+          SECURITY_CHANGE_AUTHOR: ${{ github.actor }}
+          SECURITY_REVIEWER: ${{ vars.SECURITY_REVIEWER }}
+          SECURITY_APPROVER: ${{ vars.SECURITY_APPROVER }}
+          COI_STRICT: ${{ vars.COI_STRICT || '1' }}
+        run: pnpm security:coi:check
+
       - name: Run weekly security audit
+        env:
+          SECURITY_CHANGE_AUTHOR: ${{ github.actor }}
+          SECURITY_REVIEWER: ${{ vars.SECURITY_REVIEWER }}
+          SECURITY_APPROVER: ${{ vars.SECURITY_APPROVER }}
+          COI_STRICT: ${{ vars.COI_STRICT || '1' }}
         run: pnpm security:audit:weekly:p2p
 
       - name: Upload weekly audit artifacts
@@ -74,15 +87,6 @@ jobs:
             docs/security/reports/p2p-trade-arbitration.weekly-audit.md
             docs/security/patches/p2p-trade-arbitration.auto-patch.md
           if-no-files-found: warn
-
-
-      - name: Conflict-of-interest check
-        env:
-          SECURITY_CHANGE_AUTHOR: ${{ github.actor }}
-          SECURITY_REVIEWER: ${{ vars.SECURITY_REVIEWER }}
-          SECURITY_APPROVER: ${{ vars.SECURITY_APPROVER }}
-          COI_STRICT: ${{ vars.COI_STRICT || '1' }}
-        run: pnpm security:coi:check
 
       - name: Create developer patch issue
         if: success()
