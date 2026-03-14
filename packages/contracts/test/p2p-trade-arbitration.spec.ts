@@ -50,13 +50,13 @@ describe("P2PTradeArbitration", function () {
   it("opens dispute, records votes, and resolves seller win", async function () {
     const { buyer, seller, arbitrator1, arbitrator2, token, protocol, amount } = await createAndFundTrade();
 
-    await protocol.setVoteDuration(1);
+    await protocol.setVoteDuration(5);
 
     await protocol.connect(seller).openDispute(1);
     await protocol.connect(arbitrator1).castVote(1, false);
     await protocol.connect(arbitrator2).castVote(1, false);
 
-    await ethers.provider.send("evm_increaseTime", [2]);
+    await ethers.provider.send("evm_increaseTime", [6]);
     await ethers.provider.send("evm_mine", []);
 
     await protocol.resolveDispute(1);
@@ -72,13 +72,13 @@ describe("P2PTradeArbitration", function () {
   it("resolves tie disputes in favor of refunding buyer", async function () {
     const { buyer, seller, arbitrator1, arbitrator2, token, protocol, amount } = await createAndFundTrade();
 
-    await protocol.setVoteDuration(1);
+    await protocol.setVoteDuration(5);
 
     await protocol.connect(buyer).openDispute(1);
     await protocol.connect(arbitrator1).castVote(1, true);
     await protocol.connect(arbitrator2).castVote(1, false);
 
-    await ethers.provider.send("evm_increaseTime", [2]);
+    await ethers.provider.send("evm_increaseTime", [6]);
     await ethers.provider.send("evm_mine", []);
 
     await protocol.resolveDispute(1);
@@ -111,13 +111,13 @@ describe("P2PTradeArbitration", function () {
   it("falls back to buyer refund when vote count is below configured minimum", async function () {
     const { buyer, arbitrator1, token, protocol, amount } = await createAndFundTrade();
 
-    await protocol.setVoteDuration(1);
+    await protocol.setVoteDuration(5);
 
     await protocol.setMinVotesToResolve(2);
     await protocol.connect(buyer).openDispute(1);
     await protocol.connect(arbitrator1).castVote(1, false);
 
-    await ethers.provider.send("evm_increaseTime", [2]);
+    await ethers.provider.send("evm_increaseTime", [6]);
     await ethers.provider.send("evm_mine", []);
 
     await protocol.resolveDispute(1);
@@ -155,7 +155,7 @@ describe("P2PTradeArbitration", function () {
 
     await protocol.setMinVotesToResolve(1);
 
-    await protocol.setVoteDuration(1);
+    await protocol.setVoteDuration(5);
 
     for (let i = 0; i < 55; i++) {
       const latest = await ethers.provider.getBlock("latest");
@@ -166,7 +166,7 @@ describe("P2PTradeArbitration", function () {
       await protocol.connect(buyer).fundTrade(tradeId);
       await protocol.connect(seller).openDispute(tradeId);
       await protocol.connect(arbitrator1).castVote(tradeId, true);
-      await ethers.provider.send("evm_increaseTime", [2]);
+      await ethers.provider.send("evm_increaseTime", [6]);
       await ethers.provider.send("evm_mine", []);
       await protocol.resolveDispute(tradeId);
     }
