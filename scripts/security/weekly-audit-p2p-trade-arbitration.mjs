@@ -22,6 +22,14 @@ const reportsDir = path.join(root, "docs", "security", "reports");
 mkdirSync(reportsDir, { recursive: true });
 
 const checks = [];
+checks.push(run("node", ["scripts/security/conflict-of-interest-check.mjs"], {
+  env: {
+    SECURITY_CHANGE_AUTHOR: process.env.SECURITY_CHANGE_AUTHOR || process.env.GITHUB_ACTOR || "",
+    SECURITY_REVIEWER: process.env.SECURITY_REVIEWER || "",
+    SECURITY_APPROVER: process.env.SECURITY_APPROVER || "",
+    COI_STRICT: process.env.COI_STRICT || "1"
+  }
+}));
 checks.push(run("node", ["scripts/security/analyze-p2p-trade-arbitration.mjs"]));
 checks.push(run("pnpm", ["--filter", "@dgp/contracts", "test", "--", "--grep", "P2PTradeArbitration"]));
 checks.push(run("node", ["scripts/security/generate-patch-proposal.mjs"]));
@@ -31,7 +39,8 @@ const patchPath = path.join(root, "docs", "security", "patches", "p2p-trade-arbi
 const staticSummary = existsSync(staticPath) ? JSON.parse(readFileSync(staticPath, "utf8")) : null;
 
 const failed = checks.filter((c) => c.status !== 0);
-const warning = checks.some((c) => c.status !== 0 && /HH502|403|download compiler version list/i.test(`${c.stdout}\n${c.stderr}`));
+const coiFailure = checks.some((c) => c.status !== 0 && c.cmd.includes("conflict-of-interest-check.mjs"));
+const networkWarning = checks.some((c) => c.status !== 0 && /HH502|403|download compiler version list/i.test(`${c.stdout}\n${c.stderr}`));
 
 const lines = [
   "# 每周安全审计报告（自动生成）",
@@ -41,7 +50,7 @@ const lines = [
   "",
   "## 漏洞总结",
   staticSummary
-    ? `- 静态分析检查项: ${staticSummary.summary?.checks ?? "n/a"}，发现问题: ${staticSummary.summary?.findings ?? "n/a"}`
+    ? `- 静态分析检查项: ${staticSummary.summary?.checks ?? staticSummary.checks?.length ?? "n/a"}，发现问题: ${staticSummary.summary?.findings ?? staticSummary.findings?.length ?? "n/a"}`
     : "- 静态分析结果缺失。",
   ...(staticSummary?.findings || []).map((f) => `- [${f.severity}] ${f.id}: ${f.title}`),
   "",
@@ -50,11 +59,13 @@ const lines = [
   "- 对 Medium 及以上问题应在当周排期并提交修复 PR。",
   "",
   "## 安全性评估",
-  warning
-    ? "- 本周测试受环境限制（编译器下载/网络限制），请在内网 runner 复跑并补传证据。"
-    : failed.length === 0
-      ? "- 自动化检查通过，未发现阻断上线的新问题。"
-      : "- 存在失败检查，建议暂停发布并优先处理失败项。",
+  coiFailure
+    ? "- 检测到利益冲突（COI）失败，已阻断流程，请先完成职责分离后再审计/发布。"
+    : networkWarning
+      ? "- 本周测试受环境限制（编译器下载/网络限制），请在内网 runner 复跑并补传证据。"
+      : failed.length === 0
+        ? "- 自动化检查通过，未发现阻断上线的新问题。"
+        : "- 存在失败检查，建议暂停发布并优先处理失败项。",
   "",
   "## 性能评估",
   "- 当前流程未检测到明显复杂度退化；建议持续记录 gas 基线并监控周环比变化。",
@@ -67,4 +78,5 @@ const out = path.join(reportsDir, "p2p-trade-arbitration.weekly-audit.md");
 writeFileSync(out, `${lines.join("\n")}\n`);
 console.log(`[weekly-audit] report written: ${out}`);
 
-if (failed.length > 0 && !warning) process.exit(1);
+if (coiFailure) process.exit(1);
+if (failed.length > 0 && !networkWarning) process.exit(1);
