@@ -11,3 +11,4 @@ artifacts
 cache
 .vite
 .DS_Store
+apps/telegram-bot/apps/
