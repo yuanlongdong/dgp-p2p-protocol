@@ -41,7 +41,7 @@ const lines = [
   "",
   "## 漏洞总结",
   staticSummary
-    ? `- 静态分析检查项: ${staticSummary.summary?.checks ?? "n/a"}，发现问题: ${staticSummary.summary?.findings ?? "n/a"}`
+    ? `- 静态分析检查项: ${staticSummary.summary?.checks ?? staticSummary.checks?.length ?? "n/a"}，发现问题: ${staticSummary.summary?.findings ?? staticSummary.findings?.length ?? "n/a"}`
     : "- 静态分析结果缺失。",
   ...(staticSummary?.findings || []).map((f) => `- [${f.severity}] ${f.id}: ${f.title}`),
   "",
