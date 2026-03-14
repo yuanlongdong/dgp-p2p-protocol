@@ -24,6 +24,11 @@
     "ops:takeover:check": "pnpm build && pnpm test:contracts",
     "security:baseline": "node scripts/security/baseline-check.mjs",
     "ops:healthcheck:arb:strict": "HEALTHCHECK_STRICT=1 node scripts/ops/healthcheck.mjs arbSepolia",
-    "ops:healthcheck:op:strict": "HEALTHCHECK_STRICT=1 node scripts/ops/healthcheck.mjs opSepolia"
+    "ops:healthcheck:op:strict": "HEALTHCHECK_STRICT=1 node scripts/ops/healthcheck.mjs opSepolia",
+    "security:monitor:p2p": "node scripts/security/monitor-p2p-trade-arbitration.mjs",
+    "security:audit:weekly:p2p": "node scripts/security/weekly-audit-p2p-trade-arbitration.mjs",
+    "security:patch:proposal:p2p": "node scripts/security/generate-patch-proposal.mjs",
+    "security:audit:summary:p2p": "node scripts/security/generate-audit-summary.mjs",
+    "security:workflow:p2p": "node scripts/security/run-p2p-contract-workflow.mjs"
   }
 }

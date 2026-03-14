@@ -1,0 +1,95 @@
+name: contract-security-ops
+
+on:
+  schedule:
+    - cron: "*/15 * * * *" # near real-time monitoring
+    - cron: "0 2 * * 1" # weekly audit every Monday UTC 02:00
+  workflow_dispatch:
+
+jobs:
+  runtime-monitor:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/15 * * * *'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.0.0 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run runtime monitor
+        env:
+          MONITOR_RPC_URL: ${{ secrets.MONITOR_RPC_URL }}
+          P2P_ARBITRATION_ADDRESS: ${{ secrets.P2P_ARBITRATION_ADDRESS }}
+          MONITOR_NETWORK: ${{ vars.MONITOR_NETWORK || 'mainnet' }}
+          MONITOR_WINDOW_BLOCKS: ${{ vars.MONITOR_WINDOW_BLOCKS || '120' }}
+          MONITOR_TX_SPIKE_THRESHOLD: ${{ vars.MONITOR_TX_SPIKE_THRESHOLD || '50' }}
+        run: pnpm security:monitor:p2p
+
+      - name: Upload runtime monitoring report
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-monitor-report
+          path: docs/security/reports/runtime-monitoring/*
+          if-no-files-found: warn
+
+  weekly-audit:
+    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 2 * * 1'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.0.0 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run weekly security audit
+        run: pnpm security:audit:weekly:p2p
+
+      - name: Upload weekly audit artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-audit-report
+          path: |
+            docs/security/reports/p2p-trade-arbitration.weekly-audit.md
+            docs/security/patches/p2p-trade-arbitration.auto-patch.md
+          if-no-files-found: warn
+
+      - name: Create developer patch issue
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const issuePath = 'docs/security/patches/p2p-trade-arbitration.auto-patch.md';
+            if (!fs.existsSync(issuePath)) {
+              core.notice('No patch proposal generated; skipping issue creation.');
+              return;
+            }
+            const body = fs.readFileSync(issuePath, 'utf8');
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Security][Auto] Weekly contract patch proposal ${new Date().toISOString().slice(0,10)}`,
+              body
+            });
