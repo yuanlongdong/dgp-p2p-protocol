@@ -75,8 +75,17 @@ jobs:
             docs/security/patches/p2p-trade-arbitration.auto-patch.md
           if-no-files-found: warn
 
+
+      - name: Conflict-of-interest check
+        env:
+          SECURITY_CHANGE_AUTHOR: ${{ github.actor }}
+          SECURITY_REVIEWER: ${{ vars.SECURITY_REVIEWER }}
+          SECURITY_APPROVER: ${{ vars.SECURITY_APPROVER }}
+          COI_STRICT: ${{ vars.COI_STRICT || '1' }}
+        run: pnpm security:coi:check
+
       - name: Create developer patch issue
-        if: always()
+        if: success()
         uses: actions/github-script@v7
         with:
           script: |
