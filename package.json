@@ -29,6 +29,7 @@
     "security:audit:weekly:p2p": "node scripts/security/weekly-audit-p2p-trade-arbitration.mjs",
     "security:patch:proposal:p2p": "node scripts/security/generate-patch-proposal.mjs",
     "security:audit:summary:p2p": "node scripts/security/generate-audit-summary.mjs",
-    "security:workflow:p2p": "node scripts/security/run-p2p-contract-workflow.mjs"
+    "security:workflow:p2p": "node scripts/security/run-p2p-contract-workflow.mjs",
+    "security:coi:check": "node scripts/security/conflict-of-interest-check.mjs"
   }
 }

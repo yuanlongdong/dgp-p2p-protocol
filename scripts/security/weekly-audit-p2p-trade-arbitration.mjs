@@ -22,6 +22,14 @@ const reportsDir = path.join(root, "docs", "security", "reports");
 mkdirSync(reportsDir, { recursive: true });
 
 const checks = [];
+checks.push(run("node", ["scripts/security/conflict-of-interest-check.mjs"], {
+  env: {
+    SECURITY_CHANGE_AUTHOR: process.env.SECURITY_CHANGE_AUTHOR || process.env.GITHUB_ACTOR || "",
+    SECURITY_REVIEWER: process.env.SECURITY_REVIEWER || "",
+    SECURITY_APPROVER: process.env.SECURITY_APPROVER || "",
+    COI_STRICT: process.env.COI_STRICT || "0"
+  }
+}));
 checks.push(run("node", ["scripts/security/analyze-p2p-trade-arbitration.mjs"]));
 checks.push(run("pnpm", ["--filter", "@dgp/contracts", "test", "--", "--grep", "P2PTradeArbitration"]));
 checks.push(run("node", ["scripts/security/generate-patch-proposal.mjs"]));
