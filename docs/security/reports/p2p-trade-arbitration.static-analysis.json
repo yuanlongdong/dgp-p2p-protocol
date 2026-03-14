@@ -1,0 +1,92 @@
+{
+  "tool": "custom-static-analyzer",
+  "target": "packages/contracts/contracts/P2PTradeArbitration.sol",
+  "generatedAt": "2026-03-14T02:57:23.079Z",
+  "checks": [
+    {
+      "name": "reentrancy-guard:fundTrade",
+      "passed": true,
+      "details": "Token transfer related external functions should use nonReentrant."
+    },
+    {
+      "name": "reentrancy-guard:releaseTrade",
+      "passed": true,
+      "details": "Token transfer related external functions should use nonReentrant."
+    },
+    {
+      "name": "reentrancy-guard:refundAfterDeadline",
+      "passed": true,
+      "details": "Token transfer related external functions should use nonReentrant."
+    },
+    {
+      "name": "reentrancy-guard:resolveDispute",
+      "passed": true,
+      "details": "Token transfer related external functions should use nonReentrant."
+    },
+    {
+      "name": "solidity-version-overflow-check",
+      "passed": true,
+      "details": "Solidity >=0.8 has built-in overflow/underflow checks."
+    },
+    {
+      "name": "access-control:setArbitrator",
+      "passed": true,
+      "details": "Administrative function should be owner protected."
+    },
+    {
+      "name": "access-control:setVoteDuration",
+      "passed": true,
+      "details": "Administrative function should be owner protected."
+    },
+    {
+      "name": "access-control:setMinVotesToResolve",
+      "passed": true,
+      "details": "Administrative function should be owner protected."
+    },
+    {
+      "name": "access-control:pause",
+      "passed": true,
+      "details": "Administrative function should be owner protected."
+    },
+    {
+      "name": "access-control:unpause",
+      "passed": true,
+      "details": "Administrative function should be owner protected."
+    },
+    {
+      "name": "constructor-token-initialization",
+      "passed": true,
+      "details": "Critical immutable token address must be initialized and non-zero."
+    },
+    {
+      "name": "reputation-initialization-guard",
+      "passed": true,
+      "details": "Distinguish uninitialized reputation from explicit zero score."
+    },
+    {
+      "name": "state-transition-guards",
+      "passed": true,
+      "details": "Key functions enforce expected status transitions."
+    }
+  ],
+  "findings": [
+    {
+      "id": "LOGIC-001",
+      "severity": "medium",
+      "category": "logic",
+      "title": "Fee-on-transfer / deflationary token incompatibility risk",
+      "description": "fundTrade stores `trade.amount` and calls `safeTransferFrom` once, but does not verify the actual token amount received by the contract. If a fee-on-transfer token is used, contract balance may be lower than `trade.amount`, causing release/refund/resolve transfers to revert later and potentially lock trade flow.",
+      "evidence": "No pre/post balance delta validation around `safeTransferFrom` in fundTrade.",
+      "recommendation": "Restrict settlement token to non-deflationary tokens, or validate received amount by checking pre/post balances and storing actual escrowed amount."
+    },
+    {
+      "id": "LOGIC-002",
+      "severity": "low",
+      "category": "state-management",
+      "title": "Dispute can resolve with zero votes via fallback branch",
+      "description": "When `totalVotes < minVotesToResolve`, the contract resolves dispute as `Tie` and refunds buyer. With default `minVotesToResolve = 1`, this permits resolution after window even if no arbitrator voted.",
+      "evidence": "resolveDispute computes `totalVotes` and directly enters fallback branch without explicit non-zero-vote requirement.",
+      "recommendation": "If governance requires minimum participation, add `require(totalVotes > 0, \"no-votes\")` or enforce `minVotesToResolve >= 1` plus explicit quorum semantics and alerting."
+    }
+  ]
+}
