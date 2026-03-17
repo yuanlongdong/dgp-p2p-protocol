@@ -1,0 +1,17 @@
+{
+  "name": "@dgp/compliance-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.mjs",
+    "build": "node -e \"console.log('compliance-gateway build: noop')\""
+  },
+  "dependencies": {
+    "ethers": "^6.13.2",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "zod": "^3.23.8"
+  }
+}

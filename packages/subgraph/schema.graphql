@@ -1,1 +1,81 @@
-type Escrow @entity { id: ID! }
+type Escrow @entity(immutable: true) {
+  id: ID!
+  escrowId: BigInt!
+  buyer: Bytes!
+  seller: Bytes!
+  escrow: Bytes!
+  createdAt: BigInt!
+}
+
+type Dispute @entity(immutable: false) {
+  id: ID!
+  disputeId: BigInt!
+  escrow: Bytes!
+  resolved: Boolean!
+  sellerBps: Int!
+  votes: Int!
+  openedAt: BigInt!
+  txHash: Bytes!
+}
+
+type Vote @entity(immutable: true) {
+  id: ID!
+  dispute: Dispute!
+  mediator: Bytes!
+  sellerBps: Int!
+  votes: Int!
+  txHash: Bytes!
+  timestamp: BigInt!
+}
+
+type GovernanceProposal @entity(immutable: false) {
+  id: ID!
+  proposalId: BigInt!
+  proposer: Bytes!
+  kind: Int!
+  value: Int!
+  description: String!
+  startBlock: BigInt!
+  endBlock: BigInt!
+  forVotes: BigInt!
+  againstVotes: BigInt!
+  queued: Boolean!
+  executed: Boolean!
+  canceled: Boolean!
+  state: Int!
+  createdAt: BigInt!
+  txHash: Bytes!
+}
+
+type GovernanceVote @entity(immutable: true) {
+  id: ID!
+  proposal: GovernanceProposal!
+  voter: Bytes!
+  support: Boolean!
+  weight: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+type UserCompliance @entity(immutable: false) {
+  id: ID!
+  account: Bytes!
+  kycApproved: Boolean!
+  blacklisted: Boolean!
+  sanctioned: Boolean!
+  amlRiskBps: Int!
+  updatedAt: BigInt!
+  txHash: Bytes!
+}
+
+type ComplianceAction @entity(immutable: true) {
+  id: ID!
+  account: Bytes
+  action: String!
+  boolValue: Boolean
+  riskBps: Int
+  maxRiskBps: Int
+  actor: Bytes!
+  timestamp: BigInt!
+  txHash: Bytes!
+}

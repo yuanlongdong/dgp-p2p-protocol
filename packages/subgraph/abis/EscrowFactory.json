@@ -1,0 +1,13 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      { "indexed": true, "internalType": "uint256", "name": "escrowId", "type": "uint256" },
+      { "indexed": true, "internalType": "address", "name": "buyer", "type": "address" },
+      { "indexed": true, "internalType": "address", "name": "seller", "type": "address" },
+      { "indexed": false, "internalType": "address", "name": "escrow", "type": "address" }
+    ],
+    "name": "EscrowCreated",
+    "type": "event"
+  }
+]
