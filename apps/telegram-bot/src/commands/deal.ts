@@ -1,5 +1,9 @@
-import { Markup, Telegraf } from "telegraf";
-import { buildMiniAppUrl, CommandDeps, formatDealCard } from "./types";
+import { Telegraf } from "telegraf";
+import {
+  buildDealActionKeyboard,
+  CommandDeps,
+  formatDealDetails,
+} from "./types";
 import { auditLog } from "../services/audit-log";
 import { createT } from "../i18n";
 
@@ -33,28 +37,21 @@ export function registerDeal(bot: Telegraf, deps: CommandDeps) {
       buyerUsername: buyer,
       sellerUsername: seller,
       amount,
-      token
+      token,
     });
+
     auditLog("dealCreated", {
       dealId: deal.id,
       chatId: deal.chatId,
       buyer: deal.buyerUsername,
       seller: deal.sellerUsername,
       amount: deal.amount,
-      token: deal.token
+      token: deal.token,
     });
 
-    const openUrl = buildMiniAppUrl(deps, { dealId: deal.id, action: "open" });
     await ctx.reply(
-      `${formatDealCard({
-        id: deal.id,
-        buyer,
-        seller,
-        amount,
-        token,
-        status: deal.status
-      }, t)}\n\n${t("deal.fundsSecured")}`,
-      Markup.inlineKeyboard([Markup.button.url(t("deal.openEscrow"), openUrl)])
+      `${formatDealDetails(deal, t)}\n\n${t("deal.fundsSecured")}\n${t("panel.dealCreated")}`,
+      buildDealActionKeyboard(deal, t)
     );
   });
 }

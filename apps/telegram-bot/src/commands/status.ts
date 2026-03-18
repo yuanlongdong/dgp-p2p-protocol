@@ -1,6 +1,47 @@
 import { Telegraf } from "telegraf";
-import { CommandDeps, formatDealCard } from "./types";
+import {
+  buildDealActionKeyboard,
+  CommandDeps,
+  formatDealDetails,
+} from "./types";
 import { createT } from "../i18n";
+import { withTelegramApiGuard } from "../services/telegram-safe";
+
+async function sendDealStatus(ctx: any, deps: CommandDeps, dealId: number, mode: "reply" | "edit") {
+  const t = createT();
+  const deal = deps.escrow.getDeal(dealId);
+  if (!deal) {
+    if (mode === "edit") {
+      await withTelegramApiGuard({
+        action: "answerCbQuery",
+        meta: { command: "status", dealId },
+        run: () => ctx.answerCbQuery(t("error.dealNotFound")),
+      });
+      return;
+    }
+    await ctx.reply(t("error.dealNotFound"));
+    return;
+  }
+
+  const text = `${formatDealDetails(deal, t)}\n\n${t("panel.status")}`;
+  const keyboard = buildDealActionKeyboard(deal, t);
+
+  if (mode === "edit") {
+    await withTelegramApiGuard({
+      action: "editMessageText",
+      meta: { command: "status", dealId },
+      run: () => ctx.editMessageText(text, keyboard),
+    });
+    await withTelegramApiGuard({
+      action: "answerCbQuery",
+      meta: { command: "status", dealId },
+      run: () => ctx.answerCbQuery(t("status.refreshed")),
+    });
+    return;
+  }
+
+  await ctx.reply(text, keyboard);
+}
 
 export function registerStatus(bot: Telegraf, deps: CommandDeps) {
   bot.command("status", async (ctx) => {
@@ -10,23 +51,7 @@ export function registerStatus(bot: Telegraf, deps: CommandDeps) {
     const dealId = Number(parts[1]);
 
     if (Number.isInteger(dealId) && dealId > 0) {
-      const deal = deps.escrow.getDeal(dealId);
-      if (!deal) {
-        await ctx.reply(t("error.dealNotFound"));
-        return;
-      }
-      await ctx.reply(
-        formatDealCard({
-          id: deal.id,
-          buyer: deal.buyerUsername,
-          seller: deal.sellerUsername,
-          amount: deal.amount,
-          token: deal.token,
-          status: `${deal.status}${
-            deal.contractEscrowId ? ` | ${t("status.escrowId")}=${deal.contractEscrowId}` : ""
-          }${deal.disputeId ? ` | ${t("status.disputeId")}=${deal.disputeId}` : ""}`
-        }, t) + `\n${t("status.escrowAddress", { address: deal.escrowAddress || "-" })}`
-      );
+      await sendDealStatus(ctx, deps, dealId, "reply");
       return;
     }
 
@@ -40,20 +65,17 @@ export function registerStatus(bot: Telegraf, deps: CommandDeps) {
       await ctx.reply(t("status.none"));
       return;
     }
-    const body = deals
-      .map((deal) =>
-        t("status.item", {
-          id: deal.id,
-          amount: deal.amount,
-          token: deal.token,
-          buyer: deal.buyerUsername,
-          seller: deal.sellerUsername,
-          status: deal.status,
-          escrowId: deal.contractEscrowId ? ` ${t("status.escrowId")}=${deal.contractEscrowId}` : "",
-          disputeId: deal.disputeId ? ` ${t("status.disputeId")}=${deal.disputeId}` : ""
-        })
-      )
-      .join("\n");
-    await ctx.reply(body);
+
+    for (const deal of deals) {
+      await ctx.reply(
+        `${formatDealDetails(deal, t)}\n\n${t("panel.status")}`,
+        buildDealActionKeyboard(deal, t)
+      );
+    }
+  });
+
+  bot.action(/^deal:status:(\d+)$/, async (ctx) => {
+    const dealId = Number(ctx.match[1]);
+    await sendDealStatus(ctx, deps, dealId, "edit");
   });
 }

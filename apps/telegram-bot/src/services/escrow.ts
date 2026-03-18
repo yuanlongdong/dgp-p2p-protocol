@@ -10,6 +10,8 @@ export type DealStatus =
   | "DISPUTED"
   | "REFUNDED";
 
+export type ReputationBand = "HIGH" | "MEDIUM" | "LOW";
+
 export type Deal = {
   id: number;
   chatId: number;
@@ -23,6 +25,10 @@ export type Deal = {
   disputeId?: number;
   status: DealStatus;
   createdAt: number;
+  updatedAt?: number;
+  buyerReputation?: number;
+  sellerReputation?: number;
+  riskLevel?: ReputationBand;
 };
 
 export class EscrowService {
@@ -92,7 +98,8 @@ export class EscrowService {
       amount: input.amount,
       token: input.token.toUpperCase(),
       status: "CREATED",
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      updatedAt: Date.now()
     };
     this.deals.set(deal.id, deal);
     this.nextId += 1;
@@ -121,6 +128,7 @@ export class EscrowService {
     const deal = this.deals.get(id);
     if (!deal) return undefined;
     deal.status = status;
+    deal.updatedAt = Date.now();
     this.deals.set(id, deal);
     this.persist();
     return deal;
@@ -130,6 +138,7 @@ export class EscrowService {
     const deal = this.deals.get(telegramDealId);
     if (!deal) return undefined;
     deal.contractEscrowId = contractEscrowId;
+    deal.updatedAt = Date.now();
     if (escrowAddress) deal.escrowAddress = escrowAddress;
     this.deals.set(deal.id, deal);
     this.escrowIdToDealId.set(contractEscrowId, deal.id);
@@ -144,6 +153,7 @@ export class EscrowService {
     if (!deal) return undefined;
     deal.disputeId = disputeId;
     deal.status = "DISPUTED";
+    deal.updatedAt = Date.now();
     this.deals.set(deal.id, deal);
     this.disputeIdToDealId.set(disputeId, deal.id);
     this.persist();
@@ -195,10 +205,27 @@ export class EscrowService {
     return this.bindEscrowId(candidate.id, input.contractEscrowId, input.escrowAddress);
   }
 
+
+  updateDealRisk(
+    id: number,
+    input: { buyerReputation?: number; sellerReputation?: number; riskLevel?: ReputationBand }
+  ): Deal | undefined {
+    const deal = this.deals.get(id);
+    if (!deal) return undefined;
+    if (input.buyerReputation !== undefined) deal.buyerReputation = input.buyerReputation;
+    if (input.sellerReputation !== undefined) deal.sellerReputation = input.sellerReputation;
+    if (input.riskLevel !== undefined) deal.riskLevel = input.riskLevel;
+    deal.updatedAt = Date.now();
+    this.deals.set(id, deal);
+    this.persist();
+    return deal;
+  }
+
   bindDisputeId(telegramDealId: number, disputeId: number): Deal | undefined {
     const deal = this.deals.get(telegramDealId);
     if (!deal) return undefined;
     deal.disputeId = disputeId;
+    deal.updatedAt = Date.now();
     this.deals.set(deal.id, deal);
     this.disputeIdToDealId.set(disputeId, deal.id);
     this.persist();

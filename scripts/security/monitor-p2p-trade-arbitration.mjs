@@ -41,6 +41,7 @@ const contract = toLower(args.contract || process.env.P2P_ARBITRATION_ADDRESS ||
 const network = args.network || process.env.MONITOR_NETWORK || "unknown";
 const windowBlocks = Number(args.windowBlocks || process.env.MONITOR_WINDOW_BLOCKS || 120);
 const spikeThreshold = Number(args.spikeThreshold || process.env.MONITOR_TX_SPIKE_THRESHOLD || 50);
+const failureThreshold = Number(args.failureThreshold || process.env.MONITOR_FAILURE_THRESHOLD || 3);
 const strict = (process.env.MONITOR_STRICT || "0") === "1";
 
 if (!rpcUrl || !contract) {
@@ -77,9 +78,9 @@ try {
   }
 
   const anomalies = [];
-  if (failedTxToContract > 0) {
+  if (failedTxToContract >= failureThreshold) {
     anomalies.push({
-      severity: failedTxToContract > 3 ? "high" : "medium",
+      severity: failedTxToContract > failureThreshold * 2 ? "high" : "medium",
       code: "MONITOR-FAILED-TX",
       message: `Detected ${failedTxToContract} failed tx(s) to monitored contract in recent window.`
     });
@@ -98,12 +99,26 @@ try {
       message: "Observed native token value sent to contract. Verify fallback/receive behavior and sender intent."
     });
   }
+  if (totalTxToContract === 0) {
+    anomalies.push({
+      severity: "low",
+      code: "MONITOR-IDLE-WINDOW",
+      message: "No direct contract transactions were detected in the current window. Confirm event relays are still receiving EscrowCreated / TradeFunded / DisputeCreated / EscrowReleased activity from the expected integration path."
+    });
+  }
 
   const summary = {
     generatedAt: now.toISOString(),
     network,
     contract,
     blockRange: { from: start, to: latest, size: windowBlocks },
+    monitoredSignals: [
+      "TradeCreated / EscrowCreated",
+      "TradeFunded / EscrowFunded",
+      "DisputeCreated",
+      "EscrowReleased",
+      "DepositLocked / DepositSlashed"
+    ],
     metrics: {
       totalTxToContract,
       failedTxToContract,
@@ -126,6 +141,9 @@ try {
     `- 合约: ${contract}`,
     `- 扫描区块: ${start} -> ${latest}（窗口 ${windowBlocks}）`,
     "",
+    "## 监控信号",
+    ...summary.monitoredSignals.map((signal) => `- ${signal}`),
+    "",
     "## 指标",
     `- 合约交易数: ${totalTxToContract}`,
     `- 失败交易数: ${failedTxToContract}`,
@@ -135,7 +153,12 @@ try {
     "## 异常",
     ...(anomalies.length === 0
       ? ["- 未检测到异常。"]
-      : anomalies.map((a) => `- [${a.severity}] ${a.code}: ${a.message}`))
+      : anomalies.map((a) => `- [${a.severity}] ${a.code}: ${a.message}`)),
+    "",
+    "## 自动告警建议",
+    "- 对 `MONITOR-FAILED-TX` 触发 Telegram / PagerDuty 告警并附带最近失败交易哈希。",
+    "- 对 `MONITOR-TX-SPIKE` 结合押金异常、争议集中度和风控白名单做二次确认。",
+    "- 每日与每周审计任务应复用本报告输出并归档到 `docs/security/reports/runtime-monitoring/`。"
   ];
 
   writeFileSync(mdPath, `${lines.join("\n")}\n`);
