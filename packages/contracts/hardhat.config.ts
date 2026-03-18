@@ -1,6 +1,4 @@
-import { HardhatUserConfig, subtask } from "hardhat/config";
-import { TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD } from "hardhat/builtin-tasks/task-names";
-import type { SolcBuild } from "hardhat/types/builtin-tasks/compile";
+import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "dotenv/config";
 
@@ -9,36 +7,12 @@ function accounts() {
   return privateKey ? [privateKey] : [];
 }
 
-subtask(TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD).setAction(
-  async ({ solcVersion }): Promise<SolcBuild> => {
-    const compilerPath = require.resolve("solc/soljson.js");
-    const bundledVersion = require("solc/package.json").version;
-
-    if (bundledVersion !== solcVersion) {
-      console.warn(
-        `[hardhat] Requested solc ${solcVersion}, using bundled solc ${bundledVersion} from the local installation.`
-      );
-    }
-
-    return {
-      compilerPath,
-      isSolcJs: true,
-      version: solcVersion,
-      longVersion: `${solcVersion}+local`,
-    };
-  }
-);
-
 const config: HardhatUserConfig = {
   solidity: {
-    compilers: [
-      {
-        version: "0.8.24",
-        settings: {
-          evmVersion: "istanbul",
-        },
-      },
-    ],
+    version: "0.8.24",
+    settings: {
+      evmVersion: "istanbul",
+    },
   },
   networks: {
     hardhat: {},
