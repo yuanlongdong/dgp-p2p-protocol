@@ -79,9 +79,9 @@ emit Refunded(buyer, amount);
 }
 
 function markDispute(string calldata cid) external {
-require(msg.sender == buyer || msg.sender == seller, "not-party");
-require(status == Status.Funded, "bad-status");
-require(bytes(cid).length > 0, "cid-empty");
+if (msg.sender != buyer && msg.sender != seller) revert("not-party");
+if (status != Status.Funded) revert("bad-status");
+if (bytes(cid).length == 0) revert("cid-empty");
 _setStatus(Status.Disputed);
 evidenceCID = cid;
 emit Disputed(cid);
