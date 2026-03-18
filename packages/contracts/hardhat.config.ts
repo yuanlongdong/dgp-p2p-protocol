@@ -23,14 +23,23 @@ subtask(TASK_COMPILE_SOLIDITY_GET_SOLC_BUILD).setAction(
     return {
       compilerPath,
       isSolcJs: true,
-      version: bundledVersion,
-      longVersion: bundledVersion,
+      version: solcVersion,
+      longVersion: `${solcVersion}+local`,
     };
   }
 );
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.26",
+  solidity: {
+    compilers: [
+      {
+        version: "0.8.24",
+        settings: {
+          evmVersion: "istanbul",
+        },
+      },
+    ],
+  },
   networks: {
     hardhat: {},
     arbSepolia: {
