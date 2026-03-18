@@ -15,17 +15,31 @@ export function registerStatus(bot: Telegraf, deps: CommandDeps) {
         await ctx.reply(t("error.dealNotFound"));
         return;
       }
+
+      const reputationLine =
+        deal.buyerReputation !== undefined || deal.sellerReputation !== undefined
+          ? `\n${t("status.reputation", {
+              buyer: deal.buyerReputation ?? "-",
+              seller: deal.sellerReputation ?? "-",
+              risk: deal.riskLevel || t("status.riskUnknown")
+            })}`
+          : "";
+
       await ctx.reply(
-        formatDealCard({
-          id: deal.id,
-          buyer: deal.buyerUsername,
-          seller: deal.sellerUsername,
-          amount: deal.amount,
-          token: deal.token,
-          status: `${deal.status}${
-            deal.contractEscrowId ? ` | ${t("status.escrowId")}=${deal.contractEscrowId}` : ""
-          }${deal.disputeId ? ` | ${t("status.disputeId")}=${deal.disputeId}` : ""}`
-        }, t) + `\n${t("status.escrowAddress", { address: deal.escrowAddress || "-" })}`
+        formatDealCard(
+          {
+            id: deal.id,
+            buyer: deal.buyerUsername,
+            seller: deal.sellerUsername,
+            amount: deal.amount,
+            token: deal.token,
+            status: `${deal.status}${
+              deal.contractEscrowId ? ` | ${t("status.escrowId")}=${deal.contractEscrowId}` : ""
+            }${deal.disputeId ? ` | ${t("status.disputeId")}=${deal.disputeId}` : ""}`
+          },
+          t
+        ) +
+          `\n${t("status.escrowAddress", { address: deal.escrowAddress || "-" })}${reputationLine}`
       );
       return;
     }
@@ -41,8 +55,8 @@ export function registerStatus(bot: Telegraf, deps: CommandDeps) {
       return;
     }
     const body = deals
-      .map((deal) =>
-        t("status.item", {
+      .map((deal) => {
+        const base = t("status.item", {
           id: deal.id,
           amount: deal.amount,
           token: deal.token,
@@ -51,8 +65,17 @@ export function registerStatus(bot: Telegraf, deps: CommandDeps) {
           status: deal.status,
           escrowId: deal.contractEscrowId ? ` ${t("status.escrowId")}=${deal.contractEscrowId}` : "",
           disputeId: deal.disputeId ? ` ${t("status.disputeId")}=${deal.disputeId}` : ""
-        })
-      )
+        });
+        const reputation =
+          deal.buyerReputation !== undefined || deal.sellerReputation !== undefined
+            ? `\n  ${t("status.reputation", {
+                buyer: deal.buyerReputation ?? "-",
+                seller: deal.sellerReputation ?? "-",
+                risk: deal.riskLevel || t("status.riskUnknown")
+              })}`
+            : "";
+        return `${base}${reputation}`;
+      })
       .join("\n");
     await ctx.reply(body);
   });

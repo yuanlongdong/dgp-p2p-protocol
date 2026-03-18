@@ -1,92 +1,112 @@
 {
   "tool": "custom-static-analyzer",
   "target": "packages/contracts/contracts/P2PTradeArbitration.sol",
-  "generatedAt": "2026-03-14T02:57:23.079Z",
+  "generatedAt": "2026-03-18T06:26:55.080Z",
+  "summary": {
+    "checks": 20,
+    "findings": 0
+  },
   "checks": [
     {
       "name": "reentrancy-guard:fundTrade",
       "passed": true,
-      "details": "Token transfer related external functions should use nonReentrant."
+      "details": "Value-moving functions should use nonReentrant."
     },
     {
-      "name": "reentrancy-guard:releaseTrade",
+      "name": "reentrancy-guard:lockDeposit",
       "passed": true,
-      "details": "Token transfer related external functions should use nonReentrant."
+      "details": "Value-moving functions should use nonReentrant."
     },
     {
-      "name": "reentrancy-guard:refundAfterDeadline",
+      "name": "reentrancy-guard:releaseDeposit",
       "passed": true,
-      "details": "Token transfer related external functions should use nonReentrant."
+      "details": "Value-moving functions should use nonReentrant."
+    },
+    {
+      "name": "reentrancy-guard:slashDeposit",
+      "passed": true,
+      "details": "Value-moving functions should use nonReentrant."
+    },
+    {
+      "name": "reentrancy-guard:releaseEscrow",
+      "passed": true,
+      "details": "Value-moving functions should use nonReentrant."
+    },
+    {
+      "name": "reentrancy-guard:refundEscrow",
+      "passed": true,
+      "details": "Value-moving functions should use nonReentrant."
     },
     {
       "name": "reentrancy-guard:resolveDispute",
       "passed": true,
-      "details": "Token transfer related external functions should use nonReentrant."
+      "details": "Value-moving functions should use nonReentrant."
     },
     {
       "name": "solidity-version-overflow-check",
       "passed": true,
-      "details": "Solidity >=0.8 has built-in overflow/underflow checks."
+      "details": "Solidity >=0.8 provides checked arithmetic by default."
     },
     {
       "name": "access-control:setArbitrator",
       "passed": true,
-      "details": "Administrative function should be owner protected."
+      "details": "Administrative functions should be owner protected."
     },
     {
       "name": "access-control:setVoteDuration",
       "passed": true,
-      "details": "Administrative function should be owner protected."
+      "details": "Administrative functions should be owner protected."
+    },
+    {
+      "name": "access-control:setAppealDuration",
+      "passed": true,
+      "details": "Administrative functions should be owner protected."
     },
     {
       "name": "access-control:setMinVotesToResolve",
       "passed": true,
-      "details": "Administrative function should be owner protected."
+      "details": "Administrative functions should be owner protected."
+    },
+    {
+      "name": "access-control:setSlashBps",
+      "passed": true,
+      "details": "Administrative functions should be owner protected."
     },
     {
       "name": "access-control:pause",
       "passed": true,
-      "details": "Administrative function should be owner protected."
+      "details": "Administrative functions should be owner protected."
     },
     {
       "name": "access-control:unpause",
       "passed": true,
-      "details": "Administrative function should be owner protected."
+      "details": "Administrative functions should be owner protected."
     },
     {
-      "name": "constructor-token-initialization",
+      "name": "multi-stage-arbitration",
       "passed": true,
-      "details": "Critical immutable token address must be initialized and non-zero."
+      "details": "Disputes should support explicit multi-stage progression."
     },
     {
-      "name": "reputation-initialization-guard",
+      "name": "vote-bps-recording",
       "passed": true,
-      "details": "Distinguish uninitialized reputation from explicit zero score."
+      "details": "Arbitrators should be able to vote with seller basis points for split settlements."
     },
     {
-      "name": "state-transition-guards",
+      "name": "deposit-risk-controls",
       "passed": true,
-      "details": "Key functions enforce expected status transitions."
+      "details": "Dynamic deposit lifecycle should be implemented."
+    },
+    {
+      "name": "reputation-model",
+      "passed": true,
+      "details": "Reputation should drive fees, deposits, and trade limits."
+    },
+    {
+      "name": "monitoring-events",
+      "passed": true,
+      "details": "Expected monitoring events should exist for ops automation."
     }
   ],
-  "findings": [
-    {
-      "id": "LOGIC-001",
-      "severity": "medium",
-      "category": "logic",
-      "title": "Fee-on-transfer / deflationary token incompatibility risk",
-      "description": "fundTrade stores `trade.amount` and calls `safeTransferFrom` once, but does not verify the actual token amount received by the contract. If a fee-on-transfer token is used, contract balance may be lower than `trade.amount`, causing release/refund/resolve transfers to revert later and potentially lock trade flow.",
-      "evidence": "No pre/post balance delta validation around `safeTransferFrom` in fundTrade.",
-      "recommendation": "Restrict settlement token to non-deflationary tokens, or validate received amount by checking pre/post balances and storing actual escrowed amount."
-    },
-    {
-      "id": "LOGIC-002",
-      "severity": "low",
-      "category": "state-management",
-      "title": "Dispute can resolve with zero votes via fallback branch",
-      "description": "When `totalVotes < minVotesToResolve`, the contract resolves dispute as `Tie` and refunds buyer. With default `minVotesToResolve = 1`, this permits resolution after window even if no arbitrator voted.",
-      "evidence": "resolveDispute computes `totalVotes` and directly enters fallback branch without explicit non-zero-vote requirement.",
-      "recommendation": "If governance requires minimum participation, add `require(totalVotes > 0, \"no-votes\")` or enforce `minVotesToResolve >= 1` plus explicit quorum semantics and alerting."
-    }
-  ]
+  "findings": []
 }
