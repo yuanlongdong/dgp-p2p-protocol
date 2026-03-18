@@ -10,6 +10,8 @@ export type DealStatus =
   | "DISPUTED"
   | "REFUNDED";
 
+export type ReputationBand = "HIGH" | "MEDIUM" | "LOW";
+
 export type Deal = {
   id: number;
   chatId: number;
@@ -23,6 +25,9 @@ export type Deal = {
   disputeId?: number;
   status: DealStatus;
   createdAt: number;
+  buyerReputation?: number;
+  sellerReputation?: number;
+  riskLevel?: ReputationBand;
 };
 
 export class EscrowService {
@@ -193,6 +198,21 @@ export class EscrowService {
       .sort((a, b) => b.createdAt - a.createdAt)[0];
     if (!candidate) return undefined;
     return this.bindEscrowId(candidate.id, input.contractEscrowId, input.escrowAddress);
+  }
+
+
+  updateDealRisk(
+    id: number,
+    input: { buyerReputation?: number; sellerReputation?: number; riskLevel?: ReputationBand }
+  ): Deal | undefined {
+    const deal = this.deals.get(id);
+    if (!deal) return undefined;
+    if (input.buyerReputation !== undefined) deal.buyerReputation = input.buyerReputation;
+    if (input.sellerReputation !== undefined) deal.sellerReputation = input.sellerReputation;
+    if (input.riskLevel !== undefined) deal.riskLevel = input.riskLevel;
+    this.deals.set(id, deal);
+    this.persist();
+    return deal;
   }
 
   bindDisputeId(telegramDealId: number, disputeId: number): Deal | undefined {

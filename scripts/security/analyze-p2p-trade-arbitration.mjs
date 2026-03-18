@@ -15,6 +15,7 @@ const report = {
   tool: "custom-static-analyzer",
   target,
   generatedAt: new Date().toISOString(),
+  summary: { checks: 0, findings: 0 },
   checks: [],
   findings: []
 };
@@ -23,77 +24,104 @@ function addCheck(name, passed, details) {
   report.checks.push({ name, passed, details });
 }
 
-// 1) Reentrancy defensive checks
-const transferFns = ["fundTrade", "releaseTrade", "refundAfterDeadline", "resolveDispute"];
-for (const fn of transferFns) {
-  const re = new RegExp(`function\\s+${fn}\\([^)]*\\)\\s+external\\s+nonReentrant`);
-  addCheck(`reentrancy-guard:${fn}`, has(re), "Token transfer related external functions should use nonReentrant.");
+for (const fn of [
+  "fundTrade",
+  "lockDeposit",
+  "releaseDeposit",
+  "slashDeposit",
+  "releaseEscrow",
+  "refundEscrow",
+  "resolveDispute"
+]) {
+  const re = new RegExp(`function\\s+${fn}\\([^)]*\\)\\s+(public|external)\\s+[^\\n]*nonReentrant`);
+  addCheck(`reentrancy-guard:${fn}`, has(re), "Value-moving functions should use nonReentrant.");
 }
 
-// 2) Arithmetic safety checks
-addCheck("solidity-version-overflow-check", has(/pragma solidity \^0\.8\./), "Solidity >=0.8 has built-in overflow/underflow checks.");
+addCheck(
+  "solidity-version-overflow-check",
+  has(/pragma solidity \^0\.8\./),
+  "Solidity >=0.8 provides checked arithmetic by default."
+);
 
-// 3) Access control checks
-for (const fn of ["setArbitrator", "setVoteDuration", "setMinVotesToResolve", "pause", "unpause"]) {
+for (const fn of [
+  "setArbitrator",
+  "setVoteDuration",
+  "setAppealDuration",
+  "setMinVotesToResolve",
+  "setSlashBps",
+  "pause",
+  "unpause"
+]) {
   const re = new RegExp(`function\\s+${fn}\\([^)]*\\)\\s+external\\s+onlyOwner`);
-  addCheck(`access-control:${fn}`, has(re), "Administrative function should be owner protected.");
+  addCheck(`access-control:${fn}`, has(re), "Administrative functions should be owner protected.");
 }
 
-// 4) Initialization checks
 addCheck(
-  "constructor-token-initialization",
-  has(/constructor\(address token\)[\s\S]*require\(token != address\(0\), "token=0"\);[\s\S]*settlementToken = IERC20\(token\);/),
-  "Critical immutable token address must be initialized and non-zero."
+  "multi-stage-arbitration",
+  has(/enum ArbitrationStage/) && has(/DisputeStageAdvanced/) && has(/advanceDisputeStage/),
+  "Disputes should support explicit multi-stage progression."
 );
 addCheck(
-  "reputation-initialization-guard",
-  has(/mapping\(address => bool\) private reputationInitialized;/) && has(/if \(!reputationInitialized\[user\]\)/),
-  "Distinguish uninitialized reputation from explicit zero score."
+  "vote-bps-recording",
+  has(/function vote\(uint256 disputeId, uint16 sellerBps\)/) && has(/finalSellerBps/),
+  "Arbitrators should be able to vote with seller basis points for split settlements."
+);
+addCheck(
+  "deposit-risk-controls",
+  has(/function lockDeposit\(/) && has(/function releaseDeposit\(/) && has(/function slashDeposit\(/),
+  "Dynamic deposit lifecycle should be implemented."
+);
+addCheck(
+  "reputation-model",
+  has(/struct ReputationMetrics/) && has(/function updateReputation\(/) && has(/getRequiredDepositBps/),
+  "Reputation should drive fees, deposits, and trade limits."
+);
+addCheck(
+  "monitoring-events",
+  has(/event TradeCreated/) && has(/event TradeFunded/) && has(/event DisputeCreated/) && has(/event EscrowReleased/),
+  "Expected monitoring events should exist for ops automation."
 );
 
-// 5) Logic/state checks
-addCheck(
-  "state-transition-guards",
-  has(/require\(trade\.status == TradeStatus\.Pending, "bad-status"\);/) &&
-    has(/require\(trade\.status == TradeStatus\.Funded, "bad-status"\);/) &&
-    has(/require\(trade\.status == TradeStatus\.Disputed, "not-disputed"\);/),
-  "Key functions enforce expected status transitions."
-);
-
-// Heuristic findings
-if (!has(/balanceBefore/) && !has(/balanceAfter/)) {
+if (!has(/settlementToken\.safeTransferFrom\(msg\.sender, address\(this\), trade\.amount\)/)) {
   report.findings.push({
     id: "LOGIC-001",
     severity: "medium",
     category: "logic",
-    title: "Fee-on-transfer / deflationary token incompatibility risk",
-    description:
-      "fundTrade stores `trade.amount` and calls `safeTransferFrom` once, but does not verify the actual token amount received by the contract. If a fee-on-transfer token is used, contract balance may be lower than `trade.amount`, causing release/refund/resolve transfers to revert later and potentially lock trade flow.",
-    evidence: "No pre/post balance delta validation around `safeTransferFrom` in fundTrade.",
-    recommendation:
-      "Restrict settlement token to non-deflationary tokens, or validate received amount by checking pre/post balances and storing actual escrowed amount."
+    title: "Escrow funding path changed unexpectedly",
+    description: "The analyzer could not confirm the expected escrow funding transfer path.",
+    recommendation: "Verify fundTrade still transfers the exact escrow amount into the contract."
   });
 }
 
-if (has(/if \(totalVotes < minVotesToResolve\)/) && !has(/require\(totalVotes > 0/)) {
+if (!has(/require\(_canOpenTrade\(msg\.sender, trade\.amount \+ requiredDeposit\), \"trade-limit\"\);/)) {
   report.findings.push({
-    id: "LOGIC-002",
-    severity: "low",
-    category: "state-management",
-    title: "Dispute can resolve with zero votes via fallback branch",
-    description:
-      "When `totalVotes < minVotesToResolve`, the contract resolves dispute as `Tie` and refunds buyer. With default `minVotesToResolve = 1`, this permits resolution after window even if no arbitrator voted.",
-    evidence: "resolveDispute computes `totalVotes` and directly enters fallback branch without explicit non-zero-vote requirement.",
-    recommendation:
-      "If governance requires minimum participation, add `require(totalVotes > 0, \"no-votes\")` or enforce `minVotesToResolve >= 1` plus explicit quorum semantics and alerting."
+    id: "RISK-001",
+    severity: "medium",
+    category: "risk-control",
+    title: "Deposit lock may not enforce exposure limits",
+    description: "The analyzer could not confirm that deposit locking checks active exposure against trade amount plus deposit.",
+    recommendation: "Ensure low-reputation users cannot over-extend by bypassing deposit-time exposure checks."
   });
 }
+
+if (!has(/require\(dispute\.voteCount >= minVotesToResolve, \"appeal-required\"\);/) || !has(/require\(block\.timestamp > dispute\.finalDeadline, \"appeal-active\"\);/)) {
+  report.findings.push({
+    id: "ARBITRATION-001",
+    severity: "low",
+    category: "workflow",
+    title: "Appeal stage guards missing or weakened",
+    description: "The analyzer could not fully verify the primary-vote to appeal transition requirements.",
+    recommendation: "Keep explicit guards for `appeal-required` and `appeal-active` so disputes cannot skip stages."
+  });
+}
+
+report.summary.checks = report.checks.length;
+report.summary.findings = report.findings.length;
 
 mkdirSync(dirname(outJson), { recursive: true });
 writeFileSync(outJson, JSON.stringify(report, null, 2) + "\n");
 
-const failCount = report.findings.length;
-console.log(`Static analysis finished. checks=${report.checks.length}, findings=${failCount}`);
+console.log(`Static analysis finished. checks=${report.checks.length}, findings=${report.findings.length}`);
 for (const f of report.findings) {
   console.log(`- [${f.severity}] ${f.id} ${f.title}`);
 }

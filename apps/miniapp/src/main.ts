@@ -18,6 +18,15 @@ type TelegramWebApp = {
   };
 };
 
+type ReputationSnapshot = {
+  score: number;
+  riskLevel: string;
+  depositBps: number;
+  feeBps: number;
+  tradeLimit: string;
+  warning: string;
+};
+
 type Locale = "zh-CN" | "en";
 
 const translations: Record<Locale, Record<string, string>> = {
@@ -47,7 +56,17 @@ const translations: Record<Locale, Record<string, string>> = {
     statusOffline: "浏览器预览模式",
     footer: "建议从 Telegram 官方入口打开，以获得完整签名校验与上下文。",
     securityTitle: "安全提示",
-    securityBody: "页面仅展示 Telegram 上下文和鉴权结果，真实资金操作仍以链上签名与合约状态为准。"
+    securityBody: "页面仅展示 Telegram 上下文和鉴权结果，真实资金操作仍以链上签名与合约状态为准。",
+    reputationTitle: "信誉与风险控制",
+    reputationCopy: "实时信誉分可用于决定押金比例、手续费和可承接额度，帮助机器人与 MiniApp 提前暴露高风险交易。",
+    reputationScore: "信誉分",
+    riskLevel: "风险等级",
+    depositRate: "押金比例",
+    feeRate: "手续费",
+    tradeLimit: "交易额度",
+    riskWarning: "风险提示",
+    riskUnavailable: "未配置信誉接口，当前显示静态占位。",
+    riskLoading: "正在读取信誉快照…"
   },
   en: {
     missingApp: "Missing #app container",
@@ -75,7 +94,17 @@ const translations: Record<Locale, Record<string, string>> = {
     statusOffline: "Browser preview mode",
     footer: "Open this page from the official Telegram entry point for full signed context and verification.",
     securityTitle: "Security note",
-    securityBody: "This page only shows Telegram context and auth status. Real fund actions still depend on on-chain signatures and contract state."
+    securityBody: "This page only shows Telegram context and auth status. Real fund actions still depend on on-chain signatures and contract state.",
+    reputationTitle: "Reputation & risk controls",
+    reputationCopy: "Live reputation snapshots drive deposit ratios, fee discounts, and trade-cap checks so the bot and MiniApp can warn users before risky trades proceed.",
+    reputationScore: "Reputation score",
+    riskLevel: "Risk level",
+    depositRate: "Deposit rate",
+    feeRate: "Fee",
+    tradeLimit: "Trade limit",
+    riskWarning: "Risk notice",
+    riskUnavailable: "Reputation endpoint is not configured; showing a static placeholder.",
+    riskLoading: "Loading reputation snapshot…"
   }
 };
 
@@ -116,6 +145,7 @@ const platform = webApp?.platform ?? t("browser");
 const version = webApp?.version ?? t("unknown");
 const colorScheme = webApp?.colorScheme ?? t("light");
 const authEndpoint = (import.meta as any).env?.VITE_TELEGRAM_AUTH_ENDPOINT as string | undefined;
+const reputationEndpoint = (import.meta as any).env?.VITE_REPUTATION_ENDPOINT as string | undefined;
 
 async function verifyInitData() {
   if (!authEndpoint || !webApp?.initData) {
@@ -133,6 +163,56 @@ async function verifyInitData() {
   }
 }
 
+async function loadReputationSnapshot(): Promise<ReputationSnapshot> {
+  if (!reputationEndpoint) {
+    return {
+      score: 500,
+      riskLevel: "MEDIUM",
+      depositBps: 1200,
+      feeBps: 50,
+      tradeLimit: "50000",
+      warning: t("riskUnavailable")
+    };
+  }
+
+  try {
+    const url = new URL(reputationEndpoint, window.location.href);
+    if (user?.id) url.searchParams.set("telegramUserId", String(user.id));
+    if (user?.username) url.searchParams.set("username", user.username);
+    const res = await fetch(url.toString(), {
+      headers: { accept: "application/json" }
+    });
+    if (!res.ok) {
+      return {
+        score: 500,
+        riskLevel: "MEDIUM",
+        depositBps: 1200,
+        feeBps: 50,
+        tradeLimit: "50000",
+        warning: t("verifyRejected", { status: res.status })
+      };
+    }
+    const payload = (await res.json()) as Partial<ReputationSnapshot>;
+    return {
+      score: Number(payload.score ?? 500),
+      riskLevel: String(payload.riskLevel ?? "MEDIUM"),
+      depositBps: Number(payload.depositBps ?? 1200),
+      feeBps: Number(payload.feeBps ?? 50),
+      tradeLimit: String(payload.tradeLimit ?? "50000"),
+      warning: String(payload.warning ?? "")
+    };
+  } catch {
+    return {
+      score: 500,
+      riskLevel: "MEDIUM",
+      depositBps: 1200,
+      feeBps: 50,
+      tradeLimit: "50000",
+      warning: t("riskUnavailable")
+    };
+  }
+}
+
 function infoRow(label: string, value: string | number) {
   return `
     <div class="info-row">
@@ -142,7 +222,7 @@ function infoRow(label: string, value: string | number) {
   `;
 }
 
-verifyInitData().then((authStatus) => {
+Promise.all([verifyInitData(), loadReputationSnapshot()]).then(([authStatus, reputation]) => {
   const envText = webApp ? t("envLoaded") : t("envOutside");
   const runtimeStatus = webApp ? t("statusOnline") : t("statusOffline");
   app.innerHTML = `
@@ -158,6 +238,7 @@ verifyInitData().then((authStatus) => {
           --accent: #5b8cff;
           --accent-soft: rgba(91, 140, 255, 0.14);
           --success: #027a48;
+          --warning: #b54708;
         }
 
         * { box-sizing: border-box; }
@@ -286,9 +367,8 @@ verifyInitData().then((authStatus) => {
           font-weight: 700;
           font-size: 12px;
         }
-        .success {
-          color: var(--success);
-        }
+        .success { color: var(--success); }
+        .warning { color: var(--warning); }
         .footer {
           margin-top: 16px;
           padding: 16px 18px;
@@ -337,10 +417,24 @@ verifyInitData().then((authStatus) => {
           </div>
 
           <div class="card">
+            <h2 class="section-title">${t("reputationTitle")}</h2>
+            <p class="section-copy">${t("reputationCopy")}</p>
+            <div class="info-list">
+              ${infoRow(t("reputationScore"), reputation.score)}
+              ${infoRow(t("riskLevel"), reputation.riskLevel)}
+              ${infoRow(t("depositRate"), `${(reputation.depositBps / 100).toFixed(2)}%`)}
+              ${infoRow(t("feeRate"), `${(reputation.feeBps / 100).toFixed(2)}%`)}
+              ${infoRow(t("tradeLimit"), reputation.tradeLimit)}
+              ${infoRow(t("riskWarning"), reputation.warning || t("riskLoading"))}
+            </div>
+          </div>
+
+          <div class="card">
             <h2 class="section-title">${t("securityTitle")}</h2>
             <p class="section-copy">${t("securityBody")}</p>
             <div class="footer">
-              <span class="success">●</span> ${t("footer")}
+              <span class="success">●</span> ${t("footer")}<br />
+              <span class="warning">●</span> ${reputation.warning || t("riskLoading")}
             </div>
           </div>
         </section>
