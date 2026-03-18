@@ -8,19 +8,24 @@ function accounts() {
 }
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.24",
+  solidity: {
+    version: "0.8.24",
+    settings: {
+      evmVersion: "istanbul",
+    },
+  },
   networks: {
     hardhat: {},
     arbSepolia: {
       chainId: 421614,
       url: process.env.ARB_SEPOLIA_RPC_URL || "",
-      accounts: accounts()
+      accounts: accounts(),
     },
     opSepolia: {
       chainId: 11155420,
       url: process.env.OP_SEPOLIA_RPC_URL || "",
-      accounts: accounts()
-    }
+      accounts: accounts(),
+    },
   },
 };
 
