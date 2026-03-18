@@ -1,5 +1,6 @@
 import { expect } from "chai";
 import { ethers } from "hardhat";
+import { expectRevertMessage } from "./helpers";
 
 describe("EscrowCore lifecycle hardening", function () {
   async function deployEscrow() {
@@ -32,13 +33,22 @@ describe("EscrowCore lifecycle hardening", function () {
     const { buyer, other, escrow, token, amount } = await deployEscrow();
     await token.connect(buyer).approve(await escrow.getAddress(), amount);
 
-    await expect(escrow.connect(buyer).releaseToSeller()).to.be.revertedWith("bad-status");
-    await expect(escrow.connect(other).fund()).to.be.revertedWith("only-buyer");
-    await expect(escrow.connect(other).markDispute("ipfs://d")).to.be.revertedWith("not-party");
+    await expectRevertMessage(
+      escrow.connect(buyer).releaseToSeller(),
+      "bad-status"
+    );
+    await expectRevertMessage(escrow.connect(other).fund(), "only-buyer");
+    await expectRevertMessage(
+      escrow.connect(other).markDispute("ipfs://d"),
+      "not-party"
+    );
 
     await escrow.connect(buyer).fund();
-    await expect(escrow.connect(buyer).fund()).to.be.revertedWith("bad-status");
-    await expect(escrow.connect(buyer).timeoutRefundToBuyer()).to.be.revertedWith("not-timeout");
+    await expectRevertMessage(escrow.connect(buyer).fund(), "bad-status");
+    await expectRevertMessage(
+      escrow.connect(buyer).timeoutRefundToBuyer(),
+      "not-timeout"
+    );
   });
 
   it("should enforce timeout refund window", async function () {
@@ -50,23 +60,34 @@ describe("EscrowCore lifecycle hardening", function () {
     await ethers.provider.send("evm_mine", []);
 
     await escrow.timeoutRefundToBuyer();
-    expect(await escrow.status()).to.equal(3);
+    expect(await escrow.status()).to.equal(3n);
     expect(await token.balanceOf(buyer.address)).to.equal(amount);
   });
 
   it("should enforce dispute-module-only ruling and split funds correctly", async function () {
-    const { buyer, seller, other, disputeModule, escrow, token, amount } = await deployEscrow();
+    const { buyer, seller, other, disputeModule, escrow, token, amount } =
+      await deployEscrow();
     await token.connect(buyer).approve(await escrow.getAddress(), amount);
     await escrow.connect(buyer).fund();
 
-    await expect(escrow.connect(disputeModule).applyRuling(7000)).to.be.revertedWith("not-disputed");
+    await expectRevertMessage(
+      escrow.connect(disputeModule).applyRuling(7000),
+      "not-disputed"
+    );
     await escrow.connect(buyer).markDispute("ipfs://dispute");
 
-    await expect(escrow.connect(other).applyRuling(7000)).to.be.revertedWith("only-dispute-module");
+    await expectRevertMessage(
+      escrow.connect(other).applyRuling(7000),
+      "only-dispute-module"
+    );
     await escrow.connect(disputeModule).applyRuling(7000);
 
-    expect(await escrow.status()).to.equal(5);
-    expect(await token.balanceOf(seller.address)).to.equal(ethers.parseUnits("70", 18));
-    expect(await token.balanceOf(buyer.address)).to.equal(ethers.parseUnits("30", 18));
+    expect(await escrow.status()).to.equal(5n);
+    expect(await token.balanceOf(seller.address)).to.equal(
+      ethers.parseUnits("70", 18)
+    );
+    expect(await token.balanceOf(buyer.address)).to.equal(
+      ethers.parseUnits("30", 18)
+    );
   });
 });
