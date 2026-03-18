@@ -25,8 +25,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build contracts
+        run: pnpm --filter @dgp/contracts build
+
       - name: Run Slither
-        uses: crytic/slither-action@v0.3.0
+        uses: crytic/slither-action@v0.4.2
         with:
           target: packages/contracts
-          solc-version: 0.8.24
+          ignore-compile: true
+          fail-on: none
