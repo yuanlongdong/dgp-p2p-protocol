@@ -34,12 +34,20 @@ const translations: Record<Locale, Record<string, string>> = {
     envLoaded: "已加载 Telegram WebApp 环境。",
     envOutside: "当前运行在 Telegram WebApp 之外。",
     userContext: "用户信息",
-    name: "名称：",
-    userId: "用户 ID：",
-    platform: "平台：",
-    webAppVersion: "WebApp 版本：",
-    colorScheme: "配色方案：",
-    initDataVerify: "InitData 验证："
+    heroTitle: "DGP MiniApp 控制台",
+    heroSubtitle: "用于安全打开托管、校验 Telegram 身份，并在移动端快速进入交易流程。",
+    name: "名称",
+    userId: "用户 ID",
+    platform: "平台",
+    webAppVersion: "WebApp 版本",
+    colorScheme: "配色方案",
+    initDataVerify: "InitData 验证",
+    statusCard: "运行状态",
+    statusOnline: "已连接 WebApp",
+    statusOffline: "浏览器预览模式",
+    footer: "建议从 Telegram 官方入口打开，以获得完整签名校验与上下文。",
+    securityTitle: "安全提示",
+    securityBody: "页面仅展示 Telegram 上下文和鉴权结果，真实资金操作仍以链上签名与合约状态为准。"
   },
   en: {
     missingApp: "Missing #app container",
@@ -54,12 +62,20 @@ const translations: Record<Locale, Record<string, string>> = {
     envLoaded: "Telegram WebApp context loaded.",
     envOutside: "Running outside Telegram WebApp.",
     userContext: "User Context",
-    name: "Name: ",
-    userId: "User ID: ",
-    platform: "Platform: ",
-    webAppVersion: "WebApp Version: ",
-    colorScheme: "Color Scheme: ",
-    initDataVerify: "InitData Verify: "
+    heroTitle: "DGP MiniApp Console",
+    heroSubtitle: "Securely open escrow flows, verify Telegram identity, and move through deal actions faster on mobile.",
+    name: "Name",
+    userId: "User ID",
+    platform: "Platform",
+    webAppVersion: "WebApp Version",
+    colorScheme: "Color Scheme",
+    initDataVerify: "InitData Verify",
+    statusCard: "Runtime Status",
+    statusOnline: "WebApp connected",
+    statusOffline: "Browser preview mode",
+    footer: "Open this page from the official Telegram entry point for full signed context and verification.",
+    securityTitle: "Security note",
+    securityBody: "This page only shows Telegram context and auth status. Real fund actions still depend on on-chain signatures and contract state."
   }
 };
 
@@ -117,22 +133,218 @@ async function verifyInitData() {
   }
 }
 
+function infoRow(label: string, value: string | number) {
+  return `
+    <div class="info-row">
+      <div class="info-label">${label}</div>
+      <div class="info-value">${value}</div>
+    </div>
+  `;
+}
+
 verifyInitData().then((authStatus) => {
+  const envText = webApp ? t("envLoaded") : t("envOutside");
+  const runtimeStatus = webApp ? t("statusOnline") : t("statusOffline");
   app.innerHTML = `
-    <main style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 720px; margin: 0 auto; padding: 24px;">
-      <h1 style="margin: 0 0 12px;">DGP MiniApp</h1>
-      <p style="margin: 0 0 16px; color: #666;">
-        ${webApp ? t("envLoaded") : t("envOutside")}
-      </p>
-      <section style="border: 1px solid #ddd; border-radius: 12px; padding: 16px; background: #fafafa;">
-        <h2 style="margin-top: 0;">${t("userContext")}</h2>
-        <p><strong>${t("name")}</strong> ${userName}</p>
-        <p><strong>${t("userId")}</strong> ${userId}</p>
-        <p><strong>${t("platform")}</strong> ${platform}</p>
-        <p><strong>${t("webAppVersion")}</strong> ${version}</p>
-        <p><strong>${t("colorScheme")}</strong> ${colorScheme}</p>
-        <p><strong>${t("initDataVerify")}</strong> ${authStatus}</p>
-      </section>
+    <main class="mini-shell">
+      <style>
+        :root {
+          color-scheme: light;
+          --bg: linear-gradient(180deg, #0f172a 0%, #172554 46%, #eef2ff 46%, #f8fafc 100%);
+          --card: rgba(255, 255, 255, 0.92);
+          --border: rgba(148, 163, 184, 0.24);
+          --text: #0f172a;
+          --muted: #475467;
+          --accent: #5b8cff;
+          --accent-soft: rgba(91, 140, 255, 0.14);
+          --success: #027a48;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+          margin: 0;
+          font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          background: var(--bg);
+          color: var(--text);
+        }
+        .mini-shell {
+          min-height: 100vh;
+          padding: 24px 18px 40px;
+        }
+        .mini-container {
+          max-width: 760px;
+          margin: 0 auto;
+        }
+        .hero {
+          padding: 24px;
+          border-radius: 28px;
+          background: radial-gradient(circle at top right, rgba(255,255,255,0.2), transparent 28%), linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%);
+          color: #fff;
+          box-shadow: 0 24px 54px rgba(15, 23, 42, 0.28);
+          margin-bottom: 18px;
+        }
+        .eyebrow {
+          display: inline-flex;
+          padding: 7px 12px;
+          border-radius: 999px;
+          background: rgba(255,255,255,0.14);
+          border: 1px solid rgba(255,255,255,0.16);
+          font-size: 12px;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          margin-bottom: 14px;
+        }
+        h1 {
+          margin: 0 0 10px;
+          font-size: 32px;
+          line-height: 1.05;
+        }
+        .hero p {
+          margin: 0;
+          color: rgba(255,255,255,0.82);
+          line-height: 1.7;
+          font-size: 15px;
+        }
+        .grid {
+          display: grid;
+          gap: 16px;
+        }
+        .stats {
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          margin-top: 18px;
+        }
+        .stat,
+        .card {
+          background: var(--card);
+          border: 1px solid var(--border);
+          border-radius: 22px;
+          box-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
+        }
+        .stat {
+          padding: 16px;
+        }
+        .stat-label {
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: #cbd5e1;
+          margin-bottom: 8px;
+        }
+        .hero .stat-value {
+          font-size: 18px;
+          font-weight: 700;
+          color: #fff;
+        }
+        .content {
+          display: grid;
+          gap: 16px;
+        }
+        .card {
+          padding: 20px;
+        }
+        .section-title {
+          margin: 0 0 8px;
+          font-size: 18px;
+          font-weight: 800;
+        }
+        .section-copy {
+          margin: 0 0 16px;
+          color: var(--muted);
+          line-height: 1.6;
+          font-size: 14px;
+        }
+        .info-list {
+          display: grid;
+          gap: 12px;
+        }
+        .info-row {
+          padding: 14px 16px;
+          border-radius: 16px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+        }
+        .info-label {
+          font-size: 12px;
+          color: #667085;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          margin-bottom: 6px;
+        }
+        .info-value {
+          font-size: 15px;
+          font-weight: 700;
+          word-break: break-word;
+        }
+        .badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 9px 12px;
+          border-radius: 999px;
+          background: var(--accent-soft);
+          color: var(--accent);
+          font-weight: 700;
+          font-size: 12px;
+        }
+        .success {
+          color: var(--success);
+        }
+        .footer {
+          margin-top: 16px;
+          padding: 16px 18px;
+          border-radius: 18px;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          color: var(--muted);
+          line-height: 1.7;
+          font-size: 14px;
+        }
+      </style>
+      <div class="mini-container">
+        <section class="hero">
+          <div class="eyebrow">Telegram MiniApp</div>
+          <h1>${t("heroTitle")}</h1>
+          <p>${t("heroSubtitle")}</p>
+          <div class="grid stats">
+            <div class="stat">
+              <div class="stat-label">${t("name")}</div>
+              <div class="stat-value">${userName}</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">${t("statusCard")}</div>
+              <div class="stat-value">${runtimeStatus}</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">${t("initDataVerify")}</div>
+              <div class="stat-value">${authStatus}</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="content">
+          <div class="card">
+            <div class="badge">${envText}</div>
+            <h2 class="section-title">${t("userContext")}</h2>
+            <p class="section-copy">${t("securityBody")}</p>
+            <div class="info-list">
+              ${infoRow(t("name"), String(userName))}
+              ${infoRow(t("userId"), String(userId))}
+              ${infoRow(t("platform"), String(platform))}
+              ${infoRow(t("webAppVersion"), String(version))}
+              ${infoRow(t("colorScheme"), String(colorScheme))}
+              ${infoRow(t("initDataVerify"), String(authStatus))}
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="section-title">${t("securityTitle")}</h2>
+            <p class="section-copy">${t("securityBody")}</p>
+            <div class="footer">
+              <span class="success">●</span> ${t("footer")}
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
   `;
 });

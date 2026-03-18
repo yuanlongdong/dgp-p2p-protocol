@@ -13,13 +13,15 @@ export function registerHelp(bot: Telegraf, opts?: { officialFactory?: string })
       t("help.offline"),
       "",
       t("help.available"),
-      "/start",
-      "/deal @seller amount token",
-      "/pay <dealId> [escrowId]",
-      "/release <dealId>",
-      "/dispute <dealId>",
-      "/status [dealId]",
-      "/help"
+      "• /start",
+      "• /deal @seller amount token",
+      "• /pay <dealId> [escrowId]",
+      "• /release <dealId>",
+      "• /dispute <dealId>",
+      "• /status [dealId]",
+      "• /help",
+      "",
+      t("help.tip")
     ].join("\n");
     await ctx.reply(helpText);
   });
